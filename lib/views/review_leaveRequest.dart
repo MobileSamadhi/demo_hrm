@@ -151,55 +151,100 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
           margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: ListTile(
             title: Text('${leaveRequest['first_name']} ${leaveRequest['last_name']}'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Leave Type: ${leaveRequest['leave_type']}'),
-                Text('From: ${leaveRequest['start_date']} To: ${leaveRequest['end_date']}'),
-                Text('Reason: ${leaveRequest['reason']}'),
-                Text('Status: ${leaveRequest['leave_status']}'),
-              ],
+            subtitle: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Leave Type: ${leaveRequest['leave_type']}'),
+                  Text('From: ${leaveRequest['start_date']} To: ${leaveRequest['end_date']}'),
+                  Text('Reason: ${leaveRequest['reason']}'),
+                  Text('Status: ${leaveRequest['leave_status']}'),
+                ],
+              ),
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Buttons only if manager
-                if (widget.role == 'MANAGER')
-                  ...[
-                    IconButton(
-                      icon: Icon(Icons.check, color: Colors.green),
-                      onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Pending Admin Approval'),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: Colors.red),
-                      onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Rejected'),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.remove_circle, color: Colors.orange),
-                      onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Not Approve'),
-                    ),
-                  ],
-                // Buttons for Admin/Super Admin
-                if (widget.role == 'ADMIN' || widget.role == 'SUPER ADMIN')
-                  if (leaveRequest['leave_status'] == 'Pending Admin Approval') ...[
-                    IconButton(
-                      icon: Icon(Icons.check, color: Colors.green),
-                      onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Approved'),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.close, color: Colors.red),
-                      onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Rejected'),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.remove_circle, color: Colors.orange),
-                      onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Not Approve'),
-                    ),
-                  ]
-              ],
-            ),
+            trailing: _buildActionButtons(leaveRequest),
           ),
         );
       },
     );
   }
+
+  Widget _buildActionButtons(Map<String, dynamic> leaveRequest) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Buttons for MANAGER role
+            if (widget.role == 'MANAGER') ...[
+              _buildIconWithLabel(
+                icon: Icons.check,
+                color: Colors.green,
+                label: 'Approve',
+                onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Pending Admin Approval'),
+              ),
+              _buildIconWithLabel(
+                icon: Icons.close,
+                color: Colors.red,
+                label: 'Reject',
+                onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Rejected'),
+              ),
+              _buildIconWithLabel(
+                icon: Icons.remove_circle,
+                color: Colors.orange,
+                label: 'Not Approve',
+                onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Not Approve'),
+              ),
+            ],
+            // Buttons for Admin/Super Admin role
+            if (widget.role == 'ADMIN' || widget.role == 'SUPER ADMIN')
+              if (leaveRequest['leave_status'] == 'Pending Admin Approval') ...[
+                _buildIconWithLabel(
+                  icon: Icons.check,
+                  color: Colors.green,
+                  label: 'Approve',
+                  onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Approved'),
+                ),
+                _buildIconWithLabel(
+                  icon: Icons.close,
+                  color: Colors.red,
+                  label: 'Reject',
+                  onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Rejected'),
+                ),
+                _buildIconWithLabel(
+                  icon: Icons.remove_circle,
+                  color: Colors.orange,
+                  label: 'Not Approve',
+                  onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Not Approve'),
+                ),
+              ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIconWithLabel({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(icon, color: color),
+          onPressed: onPressed,
+        ),
+        Text(
+          label,
+          style: TextStyle(fontSize: 5.8), // Adjust font size for label
+        ),
+      ],
+    );
+  }
+
 }

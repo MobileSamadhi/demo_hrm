@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
 import '../constants.dart';
 
 class AttendanceApprovalPage extends StatefulWidget {
@@ -151,7 +150,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
                               ),
                             ],
                           ),
-                          SizedBox(width: 8.0), // Spacing between Approve and Reject buttons
+                          SizedBox(width: 8.0), // Spacing between buttons
                           Column(
                             children: [
                               IconButton(
@@ -164,9 +163,21 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
                               ),
                             ],
                           ),
+                          SizedBox(width: 8.0), // Spacing between buttons
+                          Column(
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.remove_circle, color: Colors.orange),
+                                onPressed: () => _updateAttendanceStatus(record['attendance_id'], 'Not Approved'),
+                              ),
+                              Text(
+                                'Not Approve',
+                                style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-
                     ],
                   ),
                   SizedBox(height: 8.0),
