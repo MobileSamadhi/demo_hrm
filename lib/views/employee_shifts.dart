@@ -304,10 +304,6 @@ class _EmployeeShiftPageState extends State<EmployeeShiftPage> {
                                   ],
                                 ),
                               ),
-                              trailing: IconButton(
-                                icon: Icon(Icons.edit, color: Colors.white),
-                                onPressed: () => _showEditStatusSheet(shift),
-                              ),
                             ),
                           ),
                         ),

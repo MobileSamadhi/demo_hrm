@@ -18,6 +18,7 @@ import 'package:hrm_system/views/pending_leave.dart';
 import 'package:hrm_system/views/review_leaveRequest.dart';
 import 'package:hrm_system/views/shift.dart';
 import 'package:hrm_system/views/shift_management.dart';
+import 'package:hrm_system/views/shifts_list.dart';
 import 'package:hrm_system/views/to_do_tasks.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';

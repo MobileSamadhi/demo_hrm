@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
 import '../constants.dart';
 import 'dashboard.dart';
 
@@ -35,7 +36,6 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
   Future<List<Map<String, dynamic>>> fetchPaySalaries() async {
     final queryParam = Uri.encodeComponent(searchQuery);
 
-    // Use getApiUrl to build the URL using paySalaryEndpoint
     final url = Uri.parse(getApiUrl(paySalaryEndpoint) +
         '?em_id=${widget.emId}&role=${widget.role}&search=$queryParam');
 
@@ -47,14 +47,12 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
       print("Received response: ${response.body}");
 
       try {
-        final data = json.decode(response.body) as List<dynamic>; // Decode as List
-        print("Parsed JSON data: $data");
-
+        final data = json.decode(response.body) as List<dynamic>;
         return data.map((item) {
-          final parsedItem = item as Map<String, dynamic>; // Explicit cast
+          final parsedItem = item as Map<String, dynamic>;
           return {
             ...parsedItem,
-            'is_permanent': parsedItem['is_permanent'] == 1, // Ensure boolean conversion
+            'is_permanent': parsedItem['is_permanent'] == 1,
           };
         }).toList();
       } catch (e) {
@@ -67,13 +65,53 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
     }
   }
 
-
-
   void _onSearchChanged(String value) {
     setState(() {
       searchQuery = value;
       _paySalaries = fetchPaySalaries();
     });
+  }
+
+  Future<void> _downloadSalaryData(Map<String, dynamic> salary) async {
+    try {
+      List<List<dynamic>> rows = [
+        ["Field", "Value"],
+        ["Employee Name", "${salary['first_name']} ${salary['last_name']}"],
+        ["Month", salary['month'] ?? 'N/A'],
+        ["Year", salary['year'] ?? 'N/A'],
+        ["Basic Pay", salary['basic'] ?? 'N/A'],
+        ["House Rent", salary['house_rent'] ?? 'N/A'],
+        ["Bonus", salary['bonus'] ?? 'N/A'],
+        ["Medical", salary['medical'] ?? 'N/A'],
+        ["Bima", salary['bima'] ?? 'N/A'],
+        ["Tax", salary['tax'] ?? 'N/A'],
+        ["Loan", salary['loan'] ?? 'N/A'],
+        ["Provident Fund", salary['provident_fund'] ?? 'N/A'],
+        ["Addition", salary['addition'] ?? 'N/A'],
+        ["Deduction", salary['diduction'] ?? 'N/A'],
+        ["EPF (8%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.08).toStringAsFixed(2) : '0')],
+        ["EPF (12%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.12).toStringAsFixed(2) : '0')],
+        ["ETF (3%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.03).toStringAsFixed(2) : '0')],
+        ["Total Pay", salary['total_pay'] ?? 'N/A'],
+      ];
+
+      String csvData = const ListToCsvConverter().convert(rows);
+
+      final directory = await getApplicationDocumentsDirectory();
+      final path = "${directory.path}/Salary_${salary['month']}_${salary['year']}.csv";
+
+      final file = File(path);
+      await file.writeAsString(csvData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("File saved at $path")),
+      );
+    } catch (e) {
+      print("Error while generating CSV: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to save file.")),
+      );
+    }
   }
 
   @override
@@ -168,17 +206,67 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
                     final basicSalary = double.tryParse(salary['basic'] ?? '0') ?? 0;
                     final isPermanent = salary['is_permanent'] as bool;
 
-
                     final epfEmployee = isPermanent ? (basicSalary * 0.08).toDouble() : 0.0;
                     final epfEmployer = isPermanent ? (basicSalary * 0.12).toDouble() : 0.0;
                     final etf = isPermanent ? (basicSalary * 0.03).toDouble() : 0.0;
 
-
-                    return SalaryCard(
-                      salary: salary,
-                      epfEmployee: epfEmployee,
-                      epfEmployer: epfEmployer,
-                      etf: etf,
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      color: Colors.white,
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                    child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                    Text(
+                    '${salary['first_name']} ${salary['last_name']}',
+                    style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0D9494),
+                    ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                    'Month: ${salary['month'] ?? 'N/A'} - Year: ${salary['year'] ?? 'N/A'}',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    const Divider(height: 20, color: Color(0xFF0D9494)),
+                    TextRow(label: 'Total Days', value: '${salary['total_days']}'),
+                    TextRow(label: 'Basic Pay', value: 'LKR: ${salary['basic'] ?? 'N/A'}'),
+                    TextRow(label: 'House Rent', value: 'LKR:${salary['house_rent'] ?? 'N/A'}'),
+                    TextRow(label: 'Bonus', value: 'LKR:${salary['bonus'] ?? 'N/A'}'),
+                    TextRow(label: 'Medical', value: 'LKR:${salary['medical'] ?? 'N/A'}'),
+                    TextRow(label: 'Bima', value: 'LKR:${salary['bima'] ?? 'N/A'}'),
+                    TextRow(label: 'Tax', value: 'LKR:${salary['tax'] ?? 'N/A'}'),
+                    TextRow(label: 'Loan', value: 'LKR:${salary['loan'] ?? 'N/A'}'),
+                    TextRow(label: 'Provident Fund', value: 'LKR:${salary['provident_fund'] ?? 'N/A'}'),
+                    TextRow(label: 'Addition', value: 'LKR:${salary['addition'] ?? 'N/A'}'),
+                    TextRow(label: 'Deduction', value: 'LKR:${salary['diduction'] ?? 'N/A'}'),
+                    const Divider(height: 20, color: Color(0xFF0D9494)),
+                    TextRow(label: 'EPF (8%)', value: 'LKR: ${epfEmployee.toStringAsFixed(2)}'),
+                    TextRow(label: 'EPF (12%)', value: 'LKR: ${epfEmployer.toStringAsFixed(2)}'),
+                    TextRow(label: 'ETF (3%)', value: 'LKR: ${etf.toStringAsFixed(2)}'),
+                    TextRow(label: 'Total Pay', value: 'LKR: ${(double.parse(salary['total_pay']) - epfEmployee).toStringAsFixed(2)}'),
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: () => _downloadSalaryData(salary),
+                        icon: Icon(Icons.download, color: Color(0xFF0D9494)),
+                        label: Text(
+                          "Download",
+                          style: TextStyle(color: Color(0xFF0D9494)),
+                        ),
+                      ),
+                    ],
+                    ),
+                      ),
+                      ),
                     );
                   },
                 );
@@ -191,78 +279,11 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
   }
 }
 
-class SalaryCard extends StatelessWidget {
-  final Map<String, dynamic> salary;
-  final double epfEmployee;
-  final double epfEmployer;
-  final double etf;
-
-  const SalaryCard({
-    required this.salary,
-    required this.epfEmployee,
-    required this.epfEmployer,
-    required this.etf,
-    Key? key,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final basicSalary = salary['basic'] ?? 'N/A';
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      color: Colors.white,
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${salary['first_name']} ${salary['last_name']}',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF0D9494),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Month: ${salary['month'] ?? 'N/A'} - Year: ${salary['year'] ?? 'N/A'}',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const Divider(height: 20, color: Color(0xFF0D9494)),
-            TextRow(label: 'Total Days', value: '${salary['total_days']}'),
-            TextRow(label: 'Basic Pay', value: 'LKR: ${salary['basic'] ?? 'N/A'}'),
-            TextRow(label: 'House Rent', value: 'LKR:${salary['house_rent'] ?? 'N/A'}'),
-            TextRow(label: 'Bonus', value: 'LKR:${salary['bonus'] ?? 'N/A'}'),
-            TextRow(label: 'Medical', value: 'LKR:${salary['medical'] ?? 'N/A'}'),
-            TextRow(label: 'Bima', value: 'LKR:${salary['bima'] ?? 'N/A'}'),
-            TextRow(label: 'Tax', value: 'LKR:${salary['tax'] ?? 'N/A'}'),
-            TextRow(label: 'Loan', value: 'LKR:${salary['loan'] ?? 'N/A'}'),
-            TextRow(label: 'Provident Fund', value: 'LKR:${salary['provident_fund'] ?? 'N/A'}'),
-            TextRow(label: 'Addition', value: 'LKR:${salary['addition'] ?? 'N/A'}'),
-            TextRow(label: 'Deduction', value: 'LKR:${salary['diduction'] ?? 'N/A'}'),
-            const Divider(height: 20, color: Color(0xFF0D9494)),
-            TextRow(label: 'EPF (8%)', value: 'LKR: ${epfEmployee.toStringAsFixed(2)}'),
-            TextRow(label: 'EPF (12%)', value: 'LKR: ${epfEmployer.toStringAsFixed(2)}'),
-            TextRow(label: 'ETF (3%)', value: 'LKR: ${etf.toStringAsFixed(2)}'),
-            TextRow(label: 'Total Pay', value: 'LKR: ${(double.parse(salary['total_pay']) - epfEmployee).toStringAsFixed(2)}'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class TextRow extends StatelessWidget {
   final String label;
   final String value;
-  final bool isHighlighted;
 
-  const TextRow({required this.label, required this.value, this.isHighlighted = false, Key? key}) : super(key: key);
+  const TextRow({required this.label, required this.value, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -273,11 +294,11 @@ class TextRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 16, fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
           Text(
             value,
-            style: TextStyle(fontSize: 16, fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
           ),
         ],
       ),
