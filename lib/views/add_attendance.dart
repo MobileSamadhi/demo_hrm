@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'dart:convert';
 
 import '../constants.dart';
@@ -54,13 +55,24 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
     );
 
     if (pickedTime != null) {
-      final formattedTime = pickedTime.format(context); // e.g., 09:30 AM
+      final now = DateTime.now();
+      final selectedTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+
+      // Format the time in AM/PM
+      final formattedTime = DateFormat.jm().format(selectedTime);
       setState(() {
-        controller.text = formattedTime;
-        _calculateAndSetWorkingHours(); // Calculate working hours when time is selected
+        controller.text = formattedTime; // Update the text field
+        _calculateAndSetWorkingHours(); // Recalculate working hours
       });
     }
   }
+
 
   void _calculateAndSetWorkingHours() {
     final signInTime = _signinTimeController.text;
@@ -72,38 +84,34 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   }
 
   String _calculateWorkingHours(String signInTime, String signOutTime) {
-    final format = RegExp(r'(\d+):(\d+) (AM|PM)');
-    var signInMatch = format.firstMatch(signInTime);
-    var signOutMatch = format.firstMatch(signOutTime);
+    final dateFormat = DateFormat.jm(); // Handles AM/PM format, e.g., "10:00 AM"
+    try {
+      // Parse the sign-in and sign-out times
+      final signIn = dateFormat.parse(signInTime);
+      final signOut = dateFormat.parse(signOutTime);
 
-    if (signInMatch == null || signOutMatch == null) return '0 hours';
+      // Calculate the duration
+      Duration workingDuration = signOut.difference(signIn);
 
-    int signInHour = int.parse(signInMatch.group(1)!);
-    int signInMinute = int.parse(signInMatch.group(2)!);
-    int signOutHour = int.parse(signOutMatch.group(1)!);
-    int signOutMinute = int.parse(signOutMatch.group(2)!);
+      // Handle crossing midnight
+      if (workingDuration.isNegative) {
+        workingDuration += Duration(hours: 24); // Add a day if the time crosses midnight
+      }
 
-    // Convert to 24-hour format
-    if (signInMatch.group(3) == 'PM' && signInHour != 12) signInHour += 12;
-    if (signOutMatch.group(3) == 'PM' && signOutHour != 12) signOutHour += 12;
-    if (signInMatch.group(3) == 'AM' && signInHour == 12) signInHour = 0;
-    if (signOutMatch.group(3) == 'AM' && signOutHour == 12) signOutHour = 0;
+      // Format hours and minutes
+      final hours = workingDuration.inHours;
+      final minutes = workingDuration.inMinutes.remainder(60);
 
-    final signIn = Duration(hours: signInHour, minutes: signInMinute);
-    final signOut = Duration(hours: signOutHour, minutes: signOutMinute);
-    final workingDuration = signOut - signIn;
-
-    // Handle negative duration (e.g., crossing midnight)
-    if (workingDuration.isNegative) {
-      final nextDayDuration = Duration(hours: 24) - signIn + signOut;
-      return "${nextDayDuration.inHours} hours";
+      return "$hours hours $minutes minutes";
+    } catch (e) {
+      // Return "0 hours" if parsing fails
+      return '0 hours 0 minutes';
     }
-
-    // Return formatted working hours
-    return "${workingDuration.inHours} hours";
   }
 
-      Future<void> _submitAttendance() async {
+
+
+  Future<void> _submitAttendance() async {
         if (_formKey.currentState!.validate()) {
           if (_dateController.text.isEmpty ||
               _signinTimeController.text.isEmpty ||
