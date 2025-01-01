@@ -1,6 +1,6 @@
 // constants.dart
 
-const String apiDomain = 'https://hrmmobidemo.synnexcloudpos.com';
+const String apiDomain = 'https://macksonsmobi.synnexcloudpos.com';
 const String verifyCompanyEndpoint = '/verifyCompany.php';
 const String loginEndpoint = '/login.php';
 const String addAttendanceEndpoint = '/add_attendance.php';
