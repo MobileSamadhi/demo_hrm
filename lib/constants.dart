@@ -44,6 +44,7 @@ const String personalInfoEndpoint = '/personal_info.php';
 const String updatePersonalInfoEndpoint = '/update_personal_info.php';
 const String fetchPendingAttendanceEndpoint = "/fetch_pending_attendance.php";
 const String updateAttendanceStatusEndpoint = "/update_attendance_status.php";
+const String leaveSummaryEndpoint = "/leave_summary.php";
 
 
 

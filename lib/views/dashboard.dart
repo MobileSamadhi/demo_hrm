@@ -38,6 +38,7 @@ import 'holidaypage.dart';
 import 'inactive_users.dart';
 import 'leave_application.dart';
 import 'leave_report.dart';
+import 'leave_summary.dart';
 import 'leave_type.dart';
 import 'loan.dart';
 import 'package:http/http.dart' as http;
@@ -964,6 +965,38 @@ class _OverviewSectionState extends State<OverviewSection> {
           title: 'Holidays',
           color: Color(0xFF0D9494).withOpacity(0.7),
           icon: Icons.holiday_village,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => HolidaysSection()),
+            );
+          },
+        ),
+        OverviewCard(
+          title: 'Leave Summary',
+          color: Color(0xFF0D9494).withOpacity(0.7),
+          icon: Icons.leave_bags_at_home,
+          onTap: () async {
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            String? sessionId = prefs.getString('session_id');
+
+            if (sessionId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => LeaveSummaryPage(sessionId: sessionId), // Pass sessionId
+                ),
+              );
+            } else {
+              print('Session ID not found. Please login first.');
+            }
+          },
+        ),
+
+        OverviewCard(
+          title: 'Attendance Summary',
+          color: Color(0xFF0D9494).withOpacity(0.7),
+          icon: Icons.present_to_all,
           onTap: () {
             Navigator.push(
               context,
