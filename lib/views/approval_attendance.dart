@@ -142,7 +142,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
                             children: [
                               IconButton(
                                 icon: Icon(Icons.check, color: Colors.green),
-                                onPressed: () => _updateAttendanceStatus(record['attendance_id'], 'Approved'),
+                                onPressed: () => _updateAttendanceStatus(record['attendance_id'], 'A'),
                               ),
                               Text(
                                 'Approve',

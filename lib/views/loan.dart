@@ -218,7 +218,29 @@ class _LoanPageState extends State<LoanPage> {
                       ),
                     );
                   } else {
-                    return ListView.builder(
+                    return _filteredLoans.isEmpty
+                        ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.money_off, // Use an appropriate icon for loans
+                            size: 50,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 10), // Add spacing between the icon and the text
+                          Text(
+                            'No loans found.',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                   :ListView.builder(
                       itemCount: _filteredLoans.length,
                       itemBuilder: (context, index) {
                         Loan loan = _filteredLoans[index];
