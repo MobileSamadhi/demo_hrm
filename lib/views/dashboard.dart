@@ -27,6 +27,7 @@ import 'approval_attendance.dart';
 import 'assign_shift.dart';
 import 'attendance.dart';
 import 'attendance_report.dart';
+import 'attendance_summary.dart';
 import 'department.dart';
 import 'designation.dart';
 import 'disciplinary.dart';
@@ -242,18 +243,24 @@ class _DashboardPageState extends State<DashboardPage> {
                     text: 'Add Attendance',
                     onTap: () async {
                       final prefs = await SharedPreferences.getInstance();
-                      final employeeCode = prefs.getString('em_code');
+                      final employeeId = prefs.getString('em_id'); // Ensure key matches exactly
 
-                      if (employeeCode != null) {
+                      if (employeeId != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => AddAttendancePage(emCode: employeeCode),
+                            builder: (context) => AddAttendancePage(emId: employeeId),
                           ),
                         );
                       } else {
                         print("Employee ID not found");
-                        // Optionally show an error or prompt the user to log in again
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Employee ID not found. Please log in again.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        // Optionally redirect to the login page
                       }
                     },
                   ),
@@ -997,11 +1004,21 @@ class _OverviewSectionState extends State<OverviewSection> {
           title: 'Attendance Summary',
           color: Color(0xFF0D9494).withOpacity(0.7),
           icon: Icons.present_to_all,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => HolidaysSection()),
-            );
+          onTap: () async {
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            String? sessionId = prefs.getString('session_id');
+
+
+            if (sessionId != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AttendanceSummaryPage(sessionId: sessionId), // Pass sessionId
+                ),
+              );
+            } else {
+              print('Session ID not found. Please login first.');
+            }
           },
         ),
       ],

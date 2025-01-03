@@ -7,9 +7,9 @@ import '../constants.dart';
 import 'dashboard.dart';
 
 class AddAttendancePage extends StatefulWidget {
-  final String emCode; // Accept em_id as a parameter
+  final String emId; // Accept em_id as a parameter
 
-  AddAttendancePage({required this.emCode});
+  AddAttendancePage({required this.emId});
 
   @override
   _AddAttendancePageState createState() => _AddAttendancePageState();
@@ -17,7 +17,7 @@ class AddAttendancePage extends StatefulWidget {
 
 class _AddAttendancePageState extends State<AddAttendancePage> {
   final _formKey = GlobalKey<FormState>();
-  late String _employeeCode = widget.emCode;
+  late String _employeeId = widget.emId;
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _signinTimeController = TextEditingController();
   final TextEditingController _signoutTimeController = TextEditingController();
@@ -112,25 +112,25 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
 
 
   Future<void> _submitAttendance() async {
-        if (_formKey.currentState!.validate()) {
-          if (_dateController.text.isEmpty ||
-              _signinTimeController.text.isEmpty ||
-              _signoutTimeController.text.isEmpty ||
-              _workingHoursController.text.isEmpty ||
-              _selectedPlace == null) {
+    if (_formKey.currentState!.validate()) {
+      if (_dateController.text.isEmpty ||
+          _signinTimeController.text.isEmpty ||
+          _signoutTimeController.text.isEmpty ||
+          _workingHoursController.text.isEmpty ||
+          _selectedPlace == null) {
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Please fill all required fields'), backgroundColor: Colors.red),
-            );
-            return;
-          }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please fill all required fields'), backgroundColor: Colors.red),
+        );
+        return;
+      }
 
       final url = getApiUrl(addAttendanceEndpoint);
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'emp_id': _employeeCode,
+          'emp_id': _employeeId,
           'atten_date': _dateController.text,
           'signin_time': _signinTimeController.text,
           'signout_time': _signoutTimeController.text,
@@ -174,7 +174,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
             children: [
               // Employee ID
               TextFormField(
-                initialValue: _employeeCode,
+                initialValue: _employeeId,
                 readOnly: true,
                 decoration: InputDecoration(
                   labelText: 'Employee ID',

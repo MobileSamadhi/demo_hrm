@@ -239,7 +239,11 @@ class _LoginPageState extends State<LoginPage> {
           await prefs.setString('role', data['role']);
           await prefs.setString('em_id', data['em_id']);
           await prefs.setString('em_code', data['em_code']);
+
+          // Verify if stored correctly
+          print("Stored em_id: ${prefs.getString('em_id')}");
           return true;
+
         }
       }
       return false;
