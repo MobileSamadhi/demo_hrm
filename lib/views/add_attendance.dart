@@ -8,8 +8,9 @@ import 'dashboard.dart';
 
 class AddAttendancePage extends StatefulWidget {
   final String emId; // Accept em_id as a parameter
+  final String role;
 
-  AddAttendancePage({required this.emId});
+  AddAttendancePage({required this.emId, required this.role});
 
   @override
   _AddAttendancePageState createState() => _AddAttendancePageState();
@@ -23,6 +24,8 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   final TextEditingController _signoutTimeController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
   final TextEditingController _workingHoursController = TextEditingController();
+  String? _employeeRole; // Changed to nullable String
+
 
   String? _selectedPlace;
   final List<String> _placeOptions = ['Office', 'Field'];
@@ -31,6 +34,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   void initState() {
     super.initState();
     _workingHoursController.text = '0 hours'; // Initialize working hours
+    _employeeRole = 'Employee'; // Default role
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -73,7 +77,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
     }
   }
 
-
   void _calculateAndSetWorkingHours() {
     final signInTime = _signinTimeController.text;
     final signOutTime = _signoutTimeController.text;
@@ -109,8 +112,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
     }
   }
 
-
-
   Future<void> _submitAttendance() async {
     if (_formKey.currentState!.validate()) {
       if (_dateController.text.isEmpty ||
@@ -118,7 +119,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
           _signoutTimeController.text.isEmpty ||
           _workingHoursController.text.isEmpty ||
           _selectedPlace == null) {
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Please fill all required fields'), backgroundColor: Colors.red),
         );
@@ -137,10 +137,12 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
           'working_hour': _workingHoursController.text,
           'place': _selectedPlace,
           'reason': _reasonController.text,
+          'role': _employeeRole, // Send the role to the backend
         }),
       );
 
       final result = json.decode(response.body);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']),
@@ -200,6 +202,29 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                 validator: (value) => value == null || value.isEmpty ? 'Please select a date' : null,
               ),
               SizedBox(height: 16),
+              DropdownButtonFormField<String?>(
+                value: _employeeRole, // Holds the selected role or null
+                items: ['Employee', 'Manager', 'Admin', 'Super Admin']
+                    .map((role) => DropdownMenuItem(
+                  value: role,
+                  child: Text(role),
+                ))
+                    .toList(),
+                decoration: InputDecoration(
+                  labelText: 'Role',
+                  prefixIcon: Icon(Icons.person, color: Color(0xFF0D9494)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _employeeRole = value; // Update the selected role
+                    print('Selected role: $_employeeRole'); // Debug log
+                  });
+                },
+                validator: (value) => value == null || value.isEmpty ? 'Please select a role' : null,
+              ),
+
+              SizedBox(height: 20),
 
               // Sign-in Time
               TextFormField(
@@ -235,8 +260,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
               ),
               SizedBox(height: 16),
 
-              // Reason for Absence or Late
-
               // Working Hours
               TextFormField(
                 controller: _workingHoursController,
@@ -251,7 +274,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
               SizedBox(height: 16),
 
               // Place Dropdown
-              DropdownButtonFormField<String>(
+              DropdownButtonFormField<String?>(
                 value: _selectedPlace,
                 items: _placeOptions
                     .map((place) => DropdownMenuItem(value: place, child: Text(place)))

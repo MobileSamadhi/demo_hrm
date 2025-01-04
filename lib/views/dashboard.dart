@@ -242,25 +242,46 @@ class _DashboardPageState extends State<DashboardPage> {
                   _buildDrawerItem(
                     text: 'Add Attendance',
                     onTap: () async {
-                      final prefs = await SharedPreferences.getInstance();
-                      final employeeId = prefs.getString('em_id'); // Ensure key matches exactly
+                      // Fetch emId and userRole from SharedPreferences before navigating
+                      SharedPreferences prefs = await SharedPreferences.getInstance();
+                      String? managerEmId = prefs.getString('em_id'); // emId is used only for managers
+                      String? userRole = prefs.getString('role'); // Fetch user role from preferences
 
-                      if (employeeId != null) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AddAttendancePage(emId: employeeId),
-                          ),
-                        );
+                      if (userRole != null && userRole.isNotEmpty) {
+                        // If the user is admin or super_admin, managerEmId is not required
+                        if (userRole == 'admin' || userRole == 'super_admin') {
+                          // Navigate to LeaveReviewPage and pass role with empty emId for admin/super_admin
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LeaveReviewPage(
+                                emId: '', // Admins and Super Admins don't need emId
+                                role: userRole, // Pass the role
+                              ),
+                            ),
+                          );
+                        } else if (managerEmId != null && managerEmId.isNotEmpty) {
+                          // If the user is a manager, pass both emId and role
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>  AddAttendancePage(
+                                emId: managerEmId, // Pass the manager's emId
+                                role: userRole, // Pass the role (manager)
+                              ),
+                            ),
+                          );
+                        } else {
+                          // Handle the case where the manager's emId is missing
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Manager ID not found')),
+                          );
+                        }
                       } else {
-                        print("Employee ID not found");
+                        // Handle the case where the userRole is missing
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Employee ID not found. Please log in again.'),
-                            backgroundColor: Colors.red,
-                          ),
+                          SnackBar(content: Text('User role not found')),
                         );
-                        // Optionally redirect to the login page
                       }
                     },
                   ),
@@ -280,22 +301,43 @@ class _DashboardPageState extends State<DashboardPage> {
                       onTap: () async {
                         // Fetch emId and userRole from SharedPreferences before navigating
                         SharedPreferences prefs = await SharedPreferences.getInstance();
-                        String? managerEmId = prefs.getString('em_id'); // emId is used for managers
+                        String? managerEmId = prefs.getString('em_id'); // emId is used only for managers
                         String? userRole = prefs.getString('role'); // Fetch user role from preferences
 
                         if (userRole != null && userRole.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AttendanceApprovalPage(
-                                emId: managerEmId, // Pass emId if manager, null for admin/super_admin
-                                role: userRole, // Pass user role
+                          // If the user is admin or super_admin, managerEmId is not required
+                          if (userRole == 'admin' || userRole == 'super_admin') {
+                            // Navigate to LeaveReviewPage and pass role with empty emId for admin/super_admin
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => LeaveReviewPage(
+                                  emId: '', // Admins and Super Admins don't need emId
+                                  role: userRole, // Pass the role
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          } else if (managerEmId != null && managerEmId.isNotEmpty) {
+                            // If the user is a manager, pass both emId and role
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>  AttendanceApprovalPage(
+                                  emId: managerEmId, // Pass the manager's emId
+                                  role: userRole, // Pass the role (manager)
+                                ),
+                              ),
+                            );
+                          } else {
+                            // Handle the case where the manager's emId is missing
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Manager ID not found')),
+                            );
+                          }
                         } else {
+                          // Handle the case where the userRole is missing
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('User role or Manager ID not found')),
+                            SnackBar(content: Text('User role not found')),
                           );
                         }
                       },

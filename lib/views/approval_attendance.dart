@@ -1,212 +1,207 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../constants.dart';
+
+import '../constants.dart'; // Replace with your constants file path
+import 'dashboard.dart'; // Replace with your dashboard page file path
 
 class AttendanceApprovalPage extends StatefulWidget {
-  final String role;
   final String? emId;
+  final String role;
 
-  AttendanceApprovalPage({required this.role, this.emId});
+  AttendanceApprovalPage({this.emId, required this.role});
 
   @override
   _AttendanceApprovalPageState createState() => _AttendanceApprovalPageState();
 }
 
 class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
-  List<dynamic>? attendanceRecords;
+  List<dynamic>? attendanceRequests;
   bool isLoading = true;
+  bool hasError = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchPendingAttendance();
+    _fetchAttendanceRequests();
   }
 
-  Future<void> _fetchPendingAttendance() async {
-    setState(() {
-      isLoading = true;
-    });
-
+  Future<void> _fetchAttendanceRequests() async {
     try {
-      final url = getApiUrl(fetchPendingAttendanceEndpoint);
+      final url = getApiUrl(fetchAttendanceRequestsEndpoint);
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'role': widget.role, 'em_id': widget.emId}),
+        body: json.encode({'em_id': widget.emId, 'role': widget.role}),
       );
 
-      final data = json.decode(response.body);
-
-      if (data['success']) {
-        setState(() {
-          attendanceRecords = data['data'];
-          isLoading = false;
-        });
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['status'] == 'success') {
+          setState(() {
+            attendanceRequests = responseData['data'];
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            hasError = true;
+            isLoading = false;
+          });
+          _showSnackbar('Error: ${responseData['message']}');
+        }
       } else {
         setState(() {
-          attendanceRecords = [];
+          hasError = true;
           isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'])));
+        _showSnackbar('Failed to fetch data. Status code: ${response.statusCode}');
       }
     } catch (e) {
       setState(() {
+        hasError = true;
         isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      _showSnackbar('An error occurred: $e');
     }
   }
 
-  Future<void> _updateAttendanceStatus(int attendanceId, String status) async {
+  Future<void> _updateAttendanceStatus(int attendanceId, String status, int index) async {
     try {
       final url = getApiUrl(updateAttendanceStatusEndpoint);
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'attendance_id': attendanceId, 'status': status}),
+        body: json.encode({'attendance_id': attendanceId, 'status': status, 'role': widget.role}),
       );
 
-      final data = json.decode(response.body);
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['status'] == 'success') {
+          _showSnackbar('Attendance status updated to $status');
 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'])));
-      if (data['success']) {
-        _fetchPendingAttendance(); // Refresh data after updating
+          // Remove the record from the list
+          setState(() {
+            attendanceRequests!.removeAt(index);
+          });
+        } else {
+          _showSnackbar('Error updating status: ${responseData['message']}');
+        }
+      } else {
+        _showSnackbar('Failed to update status. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      _showSnackbar('An error occurred: $e');
     }
+  }
+
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Attendance Approval',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
+        title: Text('Attendance Approval', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
         backgroundColor: Color(0xFF0D9494),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DashboardPage(emId: ''), // Pass required parameters here
+              ),
+            );
           },
         ),
       ),
       body: isLoading
-          ? Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF0D9494),
-        ),
-      )
-          : attendanceRecords == null || attendanceRecords!.isEmpty
-          ? Center(
-        child: Text(
-          'No pending attendance records',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.grey,
+          ? Center(child: CircularProgressIndicator())
+          : hasError
+          ? Center(child: Text('No attendance requests found.'))
+          : attendanceRequests != null && attendanceRequests!.isNotEmpty
+          ? _buildAttendanceRequestsList()
+          : Center(child: Text('No attendance requests found.')),
+    );
+  }
+
+  Widget _buildAttendanceRequestsList() {
+    return ListView.builder(
+      itemCount: attendanceRequests!.length,
+      itemBuilder: (context, index) {
+        final request = attendanceRequests![index];
+        final attendanceId = request['id'] ?? request['attendance_id'];
+
+        return Card(
+          margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          child: ListTile(
+            title: Text('${request['emp_id']} - ${request['place']}'),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Date: ${request['atten_date']}'),
+                Text('Sign In: ${request['signin_time']}'),
+                Text('Sign Out: ${request['signout_time']}'),
+                Text('Working Hours: ${request['working_hour']}'),
+                Text('Status: ${request['status']}'),
+              ],
+            ),
+            trailing: attendanceId != null ? _buildActionButtons(attendanceId, index) : Text('Invalid ID'),
           ),
-        ),
-      )
-          : ListView.builder(
-        itemCount: attendanceRecords!.length,
-        itemBuilder: (context, index) {
-          final record = attendanceRecords![index];
-          return Card(
-            margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            elevation: 4.0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10.0),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${record['first_name']} ${record['last_name']}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Column(
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.check, color: Colors.green),
-                                onPressed: () => _updateAttendanceStatus(record['attendance_id'], 'A'),
-                              ),
-                              Text(
-                                'Approve',
-                                style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                          SizedBox(width: 8.0), // Spacing between buttons
-                          Column(
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.close, color: Colors.red),
-                                onPressed: () => _updateAttendanceStatus(record['attendance_id'], 'Rejected'),
-                              ),
-                              Text(
-                                'Reject',
-                                style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                          SizedBox(width: 8.0), // Spacing between buttons
-                          Column(
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.remove_circle, color: Colors.orange),
-                                onPressed: () => _updateAttendanceStatus(record['attendance_id'], 'Not Approved'),
-                              ),
-                              Text(
-                                'Not Approve',
-                                style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w500),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8.0),
-                  Text(
-                    'Date: ${record['atten_date']}',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                  Text(
-                    'Sign-in: ${record['signin_time']}',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                  Text(
-                    'Sign-out: ${record['signout_time']}',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                  Text(
-                    'Working Hours: ${record['working_hour']}',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                  Text(
-                    'Place: ${record['place']}',
-                    style: TextStyle(color: Colors.black54, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButtons(int attendanceId, int index) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (widget.role == 'MANAGER') ...[
+          _buildIconWithLabel(
+            icon: Icons.check,
+            color: Colors.green,
+            label: 'Pending Admin Approval',
+            onPressed: () => _updateAttendanceStatus(attendanceId, 'Pending Admin Approval', index),
+          ),
+          _buildIconWithLabel(
+            icon: Icons.close,
+            color: Colors.red,
+            label: 'Not Approved',
+            onPressed: () => _updateAttendanceStatus(attendanceId, 'Not Approved', index),
+          ),
+        ],
+        if (widget.role == 'ADMIN' || widget.role == 'SUPER ADMIN') ...[
+          _buildIconWithLabel(
+            icon: Icons.check,
+            color: Colors.green,
+            label: 'Approve',
+            onPressed: () => _updateAttendanceStatus(attendanceId, 'Approved', index),
+          ),
+          _buildIconWithLabel(
+            icon: Icons.close,
+            color: Colors.red,
+            label: 'Reject',
+            onPressed: () => _updateAttendanceStatus(attendanceId, 'Rejected', index),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildIconWithLabel({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(icon: Icon(icon, color: color), onPressed: onPressed),
+        Text(label, style: TextStyle(fontSize: 5)),
+      ],
     );
   }
 }
