@@ -149,26 +149,33 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
         final leaveRequest = leaveRequests![index];
         return Card(
           margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          child: ListTile(
-            title: Text('${leaveRequest['first_name']} ${leaveRequest['last_name']}'),
-            subtitle: SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Leave Type: ${leaveRequest['leave_type']}'),
-                  Text('From: ${leaveRequest['start_date']} To: ${leaveRequest['end_date']}'),
-                  Text('Reason: ${leaveRequest['reason']}'),
-                  Text('Status: ${leaveRequest['leave_status']}'),
-                ],
-              ),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${leaveRequest['first_name']} ${leaveRequest['last_name']}',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 4),
+                Text('Leave Type: ${leaveRequest['leave_type']}'),
+                Text('From: ${leaveRequest['start_date']} To: ${leaveRequest['end_date']}'),
+                Text('Reason: ${leaveRequest['reason']}'),
+                Text('Status: ${leaveRequest['leave_status']}'),
+                SizedBox(height: 8), // Add spacing before buttons
+                if (leaveRequest['leave_id'] != null)
+                  _buildActionButtons(leaveRequest) // Add buttons here
+                else
+                  Text('Invalid Leave ID', style: TextStyle(color: Colors.red)),
+              ],
             ),
-            trailing: _buildActionButtons(leaveRequest),
           ),
         );
       },
     );
   }
+
 
   Widget _buildActionButtons(Map<String, dynamic> leaveRequest) {
     return Column(
@@ -185,12 +192,14 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
                 label: 'Approve',
                 onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Pending Admin Approval'),
               ),
+              SizedBox(width: 8.0), // Add spacing between buttons
               _buildIconWithLabel(
                 icon: Icons.close,
                 color: Colors.red,
                 label: 'Reject',
                 onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Rejected'),
               ),
+              SizedBox(width: 8.0), // Add spacing between buttons
               _buildIconWithLabel(
                 icon: Icons.remove_circle,
                 color: Colors.orange,
@@ -207,12 +216,14 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
                   label: 'Approve',
                   onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Approved'),
                 ),
+                SizedBox(width: 8.0), // Add spacing between buttons
                 _buildIconWithLabel(
                   icon: Icons.close,
                   color: Colors.red,
                   label: 'Reject',
                   onPressed: () => _updateLeaveStatus(leaveRequest['leave_id'], 'Rejected'),
                 ),
+                SizedBox(width: 8.0), // Add spacing between buttons
                 _buildIconWithLabel(
                   icon: Icons.remove_circle,
                   color: Colors.orange,
@@ -232,19 +243,26 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     required String label,
     required VoidCallback onPressed,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: Icon(icon, color: color),
-          onPressed: onPressed,
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.white, backgroundColor: color.withOpacity(0.9),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8.0),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 5.8), // Adjust font size for label
-        ),
-      ],
+        padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+      ),
+      icon: Icon(
+        icon,
+        size: 18,
+        color: Colors.white, // Set the icon color to white
+      ),
+      label: Text(
+        label,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      ),
+      onPressed: onPressed,
     );
   }
+
 
 }

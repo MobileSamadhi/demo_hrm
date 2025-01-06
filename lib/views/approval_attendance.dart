@@ -136,25 +136,48 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
 
         return Card(
           margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          child: ListTile(
-            title: Text('${request['first_name']} ${request['last_name']}'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Place: ${request['place']}'),
-                Text('Date: ${request['atten_date']}'),
-                Text('Sign In: ${request['signin_time']}'),
-                Text('Sign Out: ${request['signout_time']}'),
-                Text('Working Hours: ${request['working_hour']}'),
-                Text('Status: ${request['status']}'),
-              ],
-            ),
-            trailing: attendanceId != null ? _buildActionButtons(attendanceId, index) : Text('Invalid ID'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${request['first_name']} ${request['last_name']}',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 4),
+                    Text('Place: ${request['place']}'),
+                    Text('Date: ${request['atten_date']}'),
+                    Text('Sign In: ${request['signin_time']}'),
+                    Text('Sign Out: ${request['signout_time']}'),
+                    Text('Working Hours: ${request['working_hour']}'),
+                    Text('Status: ${request['status']}'),
+                  ],
+                ),
+              ),
+              if (attendanceId != null)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: _buildActionButtons(attendanceId, index),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    'Invalid ID',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+            ],
           ),
         );
       },
     );
   }
+
 
   Widget _buildActionButtons(int attendanceId, int index) {
     return Row(
@@ -164,9 +187,10 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
           _buildIconWithLabel(
             icon: Icons.check,
             color: Colors.green,
-            label: 'Pending Admin Approval',
+            label: 'Approve',
             onPressed: () => _updateAttendanceStatus(attendanceId, 'Pending Admin Approval', index),
           ),
+          SizedBox(width: 8.0), // Add spacing between buttons
           _buildIconWithLabel(
             icon: Icons.close,
             color: Colors.red,
@@ -174,6 +198,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
             onPressed: () => _updateAttendanceStatus(attendanceId, 'Not Approved', index),
           ),
         ],
+        SizedBox(width: 8.0), // Add spacing between buttons
         if (widget.role == 'ADMIN' || widget.role == 'SUPER ADMIN') ...[
           _buildIconWithLabel(
             icon: Icons.check,
@@ -181,6 +206,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
             label: 'Approve',
             onPressed: () => _updateAttendanceStatus(attendanceId, 'Approved', index),
           ),
+          SizedBox(width: 8.0), // Add spacing between buttons
           _buildIconWithLabel(
             icon: Icons.close,
             color: Colors.red,
@@ -198,12 +224,25 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     required String label,
     required VoidCallback onPressed,
   }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(icon: Icon(icon, color: color), onPressed: onPressed),
-        Text(label, style: TextStyle(fontSize: 5)),
-      ],
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        foregroundColor: Colors.white, backgroundColor: color.withOpacity(0.9),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+      ),
+      icon: Icon(
+        icon,
+        size: 18,
+        color: Colors.white, // Set the icon color to white
+      ),
+      label: Text(
+        label,
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+      ),
+      onPressed: onPressed,
     );
   }
+
 }
