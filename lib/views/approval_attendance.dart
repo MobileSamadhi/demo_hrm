@@ -65,6 +65,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     }
   }
 
+
   Future<void> _updateAttendanceStatus(int attendanceId, String status, int index) async {
     try {
       final url = getApiUrl(updateAttendanceStatusEndpoint);
@@ -136,10 +137,11 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
         return Card(
           margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
           child: ListTile(
-            title: Text('${request['emp_id']} - ${request['place']}'),
+            title: Text('${request['first_name']} ${request['last_name']}'),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text('Place: ${request['place']}'),
                 Text('Date: ${request['atten_date']}'),
                 Text('Sign In: ${request['signin_time']}'),
                 Text('Sign Out: ${request['signout_time']}'),

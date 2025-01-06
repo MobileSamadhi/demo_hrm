@@ -5,7 +5,6 @@ import 'dart:convert';
 import '../views/dashboard.dart'; // Update this import based on your project structure
 import '../constants.dart'; // Contains endpoint and utility methods like `getApiUrl`
 
-// Model for Attendance Summary
 class AttendanceSummary {
   final String id;
   final String date;
@@ -65,7 +64,7 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
   }
 
   Future<void> _fetchAttendanceData() async {
-    const String apiUrl = 'https://macksonsmobi.synnexcloudpos.com/attendance_summary.php';
+    final String apiUrl = getApiUrl(attendanceSummaryEndpoint);
 
     setState(() {
       _isLoading = true;
@@ -126,7 +125,7 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => DashboardPage(emId: '',)),
+              MaterialPageRoute(builder: (context) => DashboardPage(emId: '')),
             );
           },
         ),
@@ -134,7 +133,9 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? Center(
+          child: CircularProgressIndicator(color: Color(0xFF0D9494)),
+        )
             : _errorMessage.isNotEmpty
             ? _buildErrorState()
             : _attendanceList.isEmpty
@@ -181,33 +182,43 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
+        headingRowColor: MaterialStateColor.resolveWith((states) => Color(0xFF0D9494)),
         columns: [
-          DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Sign In', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Hours', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Date', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Sign In', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Sign Out', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Hours', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Status', style: _tableHeaderStyle())),
         ],
         rows: _attendanceList.map((attendance) {
-          return DataRow(cells: [
-            DataCell(Text(attendance.date)),
-            DataCell(Text(attendance.signInTime)),
-            DataCell(Text(attendance.signOutTime)),
-            DataCell(Text(attendance.workingHours)),
-            DataCell(Text(
-              attendance.status,
-              style: TextStyle(
-                color: attendance.status == 'Present'
-                    ? Colors.green
-                    : attendance.status == 'Absent'
-                    ? Colors.red
-                    : Colors.orange,
-                fontWeight: FontWeight.bold,
-              ),
-            )),
-          ]);
+          return DataRow(
+            cells: [
+              DataCell(Text(attendance.date)),
+              DataCell(Text(attendance.signInTime)),
+              DataCell(Text(attendance.signOutTime)),
+              DataCell(Text(attendance.workingHours)),
+              DataCell(Text(
+                attendance.status,
+                style: TextStyle(
+                  color: attendance.status == 'Approved'
+                      ? Colors.green
+                      : attendance.status == 'Rejected'
+                      ? Colors.red
+                      : Color(0xFF0D9494),
+                  fontWeight: FontWeight.bold,
+                ),
+              )),
+            ],
+          );
         }).toList(),
       ),
+    );
+  }
+
+  TextStyle _tableHeaderStyle() {
+    return TextStyle(
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
     );
   }
 }

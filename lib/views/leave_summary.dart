@@ -62,8 +62,7 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
   }
 
   Future<void> _fetchLeaveData() async {
-    // Set the fixed API URL
-    const String apiUrl = 'https://macksonsmobi.synnexcloudpos.com/leave_summary.php';
+    final String apiUrl = getApiUrl(leaveSummaryEndpoint);
 
     setState(() {
       _isLoading = true;
@@ -71,12 +70,11 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
     });
 
     try {
-      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId, // Pass session ID in headers
+          'Session-ID': widget.sessionId,
         },
       );
 
@@ -109,7 +107,6 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,7 +121,7 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => DashboardPage(emId: '',)),
+              MaterialPageRoute(builder: (context) => DashboardPage(emId: '')),
             );
           },
         ),
@@ -132,7 +129,7 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator())
+            ? Center(child: CircularProgressIndicator(color: Color(0xFF0D9494)))
             : _errorMessage.isNotEmpty
             ? _buildErrorState()
             : _leaveList.isEmpty
@@ -179,12 +176,13 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
+        headingRowColor: MaterialStateColor.resolveWith((states) => Color(0xFF0D9494)),
         columns: [
-          DataColumn(label: Text('Type', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Start', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('End', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Duration', style: TextStyle(fontWeight: FontWeight.bold))),
-          DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.bold))),
+          DataColumn(label: Text('Type', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Start', style: _tableHeaderStyle())),
+          DataColumn(label: Text('End', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Duration', style: _tableHeaderStyle())),
+          DataColumn(label: Text('Status', style: _tableHeaderStyle())),
         ],
         rows: _leaveList.map((leave) {
           return DataRow(cells: [
@@ -199,13 +197,20 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
                     ? Colors.green
                     : leave.status == 'Rejected'
                     ? Colors.red
-                    : Colors.orange,
+                    : Color(0xFF0D9494),
                 fontWeight: FontWeight.bold,
               ),
             )),
           ]);
         }).toList(),
       ),
+    );
+  }
+
+  TextStyle _tableHeaderStyle() {
+    return TextStyle(
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
     );
   }
 }
