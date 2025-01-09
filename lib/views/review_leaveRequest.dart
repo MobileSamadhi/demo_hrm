@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -122,7 +124,10 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
         title: Text('Review Leave Requests', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
         backgroundColor: Color(0xFF0D9494),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
+            color: Colors.white,
+          ),
           onPressed: () {
             Navigator.pushReplacement(
               context,

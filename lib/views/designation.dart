@@ -216,7 +216,7 @@ class _DesignationPageState extends State<DesignationPage> {
   PreferredSizeWidget _buildAppBar() {
     return Platform.isIOS
         ? CupertinoNavigationBar(
-      middle: Text('Designations List'),
+      middle: Text('Designations List', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
       backgroundColor: Color(0xFF0D9494),
       leading: CupertinoButton(
         child: Icon(CupertinoIcons.back, color: CupertinoColors.white),

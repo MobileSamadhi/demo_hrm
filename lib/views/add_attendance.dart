@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -153,28 +156,48 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   }
 
   @override
+  PreferredSizeWidget _buildAppBar() {
+    return Platform.isIOS
+        ? CupertinoNavigationBar(
+      middle: Text(
+        'Add Attendance',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+      backgroundColor: Color(0xFF0D9494).withOpacity(0.9),
+      leading: CupertinoButton(
+        child: Icon(CupertinoIcons.back, color: CupertinoColors.white),
+        padding: EdgeInsets.zero,
+        onPressed: () {
+          Navigator.pop(context);
+        },
+      ),
+    )
+        : AppBar(
+      title: Text(
+        'Add Attendance',
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+      backgroundColor: Color(0xFF0D9494),
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () {
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Add Attendance',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: Color(0xFF0D9494),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
+      appBar: _buildAppBar(),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              // Employee ID
+              // Remaining Form Fields and UI elements
               TextFormField(
                 initialValue: _employeeId,
                 readOnly: true,
@@ -185,7 +208,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                 ),
               ),
               SizedBox(height: 16),
-
               // Attendance Date
               TextFormField(
                 controller: _dateController,

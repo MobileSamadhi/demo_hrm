@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -108,28 +111,55 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
   }
 
   @override
+  PreferredSizeWidget _buildAppBar() {
+    return Platform.isIOS
+        ? CupertinoNavigationBar(
+      middle: Text(
+        'Leave Summary',
+        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+      ),
+      backgroundColor: Color(0xFF0D9494).withOpacity(0.9),
+      leading: CupertinoButton(
+        child: Icon(CupertinoIcons.back, color: CupertinoColors.white),
+        padding: EdgeInsets.zero,
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            CupertinoPageRoute(builder: (context) => DashboardPage(emId: '')),
+          );
+        },
+      ),
+    )
+        : AppBar(
+      title: Text(
+        'Leave Summary',
+        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+      ),
+      backgroundColor: Color(0xFF0D9494),
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => DashboardPage(emId: '')),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Leave Summary',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
-        ),
-        backgroundColor: Color(0xFF0D9494),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => DashboardPage(emId: '')),
-            );
-          },
-        ),
-      ),
+      appBar: _buildAppBar(),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? Center(child: CircularProgressIndicator(color: Color(0xFF0D9494)))
+            ? Center(
+          child: Platform.isIOS
+              ? CupertinoActivityIndicator()
+              : CircularProgressIndicator(color: Color(0xFF0D9494)),
+        )
             : _errorMessage.isNotEmpty
             ? _buildErrorState()
             : _leaveList.isEmpty
@@ -138,6 +168,7 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
       ),
     );
   }
+
 
   Widget _buildErrorState() {
     return Center(

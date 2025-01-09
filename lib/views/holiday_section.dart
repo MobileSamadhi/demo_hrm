@@ -69,10 +69,11 @@ class _HolidaysSectionState extends State<HolidaysSection> {
           ? CupertinoNavigationBar(
         middle: Text(
           'Holidays',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
+        backgroundColor: Color(0xFF0D9494),
         leading: CupertinoNavigationBarBackButton(
-          color: Color(0xFF0D9494),
+          color: Colors.white,
           onPressed: () {
             Navigator.pushReplacement(
               context,

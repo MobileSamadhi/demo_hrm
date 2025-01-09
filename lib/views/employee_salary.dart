@@ -172,7 +172,8 @@ class _EmployeeSalaryPageState extends State<EmployeeSalaryPage> {
   PreferredSizeWidget _buildAppBar() {
     return Platform.isIOS
         ? CupertinoNavigationBar(
-      middle: Text('Employee Salary List'),
+      middle: Text('Employee Salary List',
+        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),),
       backgroundColor: Color(0xFF0D9494),
       leading: CupertinoButton(
         child: Icon(CupertinoIcons.back, color: CupertinoColors.white),

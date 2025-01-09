@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -100,25 +102,53 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
   }
 
   @override
+  PreferredSizeWidget _buildAppBar() {
+    return Platform.isIOS
+        ? CupertinoNavigationBar(
+      middle: Text(
+        'Attendance Approval',
+        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+      ),
+      backgroundColor: Color(0xFF0D9494).withOpacity(0.9),
+      leading: CupertinoButton(
+        child: Icon(CupertinoIcons.back, color: CupertinoColors.white),
+        padding: EdgeInsets.zero,
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            CupertinoPageRoute(
+              builder: (context) => DashboardPage(emId: ''), // Pass parameters if needed
+            ),
+          );
+        },
+      ),
+    )
+        : AppBar(
+      title: Text(
+        'Attendance Approval',
+        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+      ),
+      backgroundColor: Color(0xFF0D9494),
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DashboardPage(emId: ''), // Pass parameters if needed
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Attendance Approval', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-        backgroundColor: Color(0xFF0D9494),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DashboardPage(emId: ''), // Pass required parameters here
-              ),
-            );
-          },
-        ),
-      ),
+      appBar: _buildAppBar(),
       body: isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? Center(child: Platform.isIOS ? CupertinoActivityIndicator() : CircularProgressIndicator())
           : hasError
           ? Center(child: Text('No attendance requests found.'))
           : attendanceRequests != null && attendanceRequests!.isNotEmpty
@@ -126,6 +156,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
           : Center(child: Text('No attendance requests found.')),
     );
   }
+
 
   Widget _buildAttendanceRequestsList() {
     return ListView.builder(

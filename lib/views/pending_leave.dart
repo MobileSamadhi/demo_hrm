@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -99,7 +102,10 @@ class _PendingLeaveOverviewState extends State<PendingLeaveOverview> {
         title: Text('Pending Leaves', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
         backgroundColor: Color(0xFF0D9494),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
+            color: Colors.white,
+          ),
           onPressed: () {
             Navigator.pushReplacement(
               context,

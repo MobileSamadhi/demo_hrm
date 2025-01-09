@@ -121,7 +121,8 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
     return isIOS
         ? CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('Pay Salary Details'),
+        middle: const Text('Pay Salary Details',
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           child: const Icon(CupertinoIcons.back, color: CupertinoColors.white),

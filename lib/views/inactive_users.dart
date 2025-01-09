@@ -154,7 +154,7 @@ class _InactiveUserPageState extends State<InactiveUserPage> {
   PreferredSizeWidget _buildAppBar() {
     return Platform.isIOS
         ? CupertinoNavigationBar(
-      middle: Text('Inactive Users'),
+      middle: Text('Inactive Users', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),),
       backgroundColor: Color(0xFF0D9494),
       leading: CupertinoButton(
         child: Icon(CupertinoIcons.back, color: CupertinoColors.white),

@@ -325,7 +325,10 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       ),
       backgroundColor: Color(0xFF0D9494),
       leading: IconButton(
-        icon: Icon(Icons.arrow_back, color: Colors.white),
+        icon: Icon(
+          Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
+          color: Colors.white,
+        ),
         onPressed: () {
           Navigator.pushReplacement(
             context,

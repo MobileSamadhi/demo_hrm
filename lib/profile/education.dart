@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hrm_system/constants.dart';
 import 'dart:convert';
@@ -107,7 +110,10 @@ class _EducationInfoPageState extends State<EducationInfoPage> {
         ),
         backgroundColor: Color(0xFF0D9494),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
+            color: Colors.white,
+          ),
           onPressed: () {
             Navigator.pushReplacement(
               context,
@@ -280,7 +286,10 @@ class _EditEducationPageState extends State<EditEducationPage> {
         ),
         backgroundColor: Color(0xFF0D9494),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+        Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
+          color: Colors.white,
+        ),
           onPressed: () {
             Navigator.pushReplacement(
               context,

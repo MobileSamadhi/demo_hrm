@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io'; // Import the dart:io library
+import 'package:flutter/cupertino.dart';
 import 'package:hrm_system/constants.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -61,7 +62,10 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
         title: Text('Notice Board', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
         backgroundColor: Platform.isIOS ? Color(0xFF0D9494) : Color(0xFF0D9494),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
+            color: Colors.white,
+          ),
           onPressed: () {
             Navigator.pushReplacement(
               context,
