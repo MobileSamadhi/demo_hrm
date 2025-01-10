@@ -153,26 +153,85 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
       itemBuilder: (context, index) {
         final leaveRequest = leaveRequests![index];
         return Card(
-          margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.0),
+          ),
+          elevation: 4, // Add shadow for better aesthetics
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Name and Leave Type
                 Text(
                   '${leaveRequest['first_name']} ${leaveRequest['last_name']}',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                SizedBox(height: 4),
-                Text('Leave Type: ${leaveRequest['leave_type']}'),
-                Text('From: ${leaveRequest['start_date']} To: ${leaveRequest['end_date']}'),
-                Text('Reason: ${leaveRequest['reason']}'),
-                Text('Status: ${leaveRequest['leave_status']}'),
-                SizedBox(height: 8), // Add spacing before buttons
+                const SizedBox(height: 4),
+                Text(
+                  'Leave Type: ${leaveRequest['leave_type']}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+
+                // Dates
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'From: ${leaveRequest['start_date']}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    Text(
+                      'To: ${leaveRequest['end_date']}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Reason
+                const SizedBox(height: 8),
+                Text(
+                  'Reason: ${leaveRequest['reason']}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+
+                // Status
+                const SizedBox(height: 8),
+                Text(
+                  'Status: ${leaveRequest['leave_status']}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _getStatusColor(leaveRequest['leave_status']),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                // Buttons
+                const SizedBox(height: 16),
                 if (leaveRequest['leave_id'] != null)
-                  _buildActionButtons(leaveRequest) // Add buttons here
+                  _buildActionButtons(leaveRequest)
                 else
-                  Text('Invalid Leave ID', style: TextStyle(color: Colors.red)),
+                  const Text(
+                    'Invalid Leave ID',
+                    style: TextStyle(color: Colors.red),
+                  ),
               ],
             ),
           ),
@@ -180,6 +239,20 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
       },
     );
   }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
 
 
   Widget _buildActionButtons(Map<String, dynamic> leaveRequest) {

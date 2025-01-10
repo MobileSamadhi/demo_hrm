@@ -166,47 +166,88 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
         final attendanceId = request['id'] ?? request['attendance_id'];
 
         return Card(
-          margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${request['first_name']} ${request['last_name']}',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 4),
-                    Text('Place: ${request['place']}'),
-                    Text('Date: ${request['atten_date']}'),
-                    Text('Sign In: ${request['signin_time']}'),
-                    Text('Sign Out: ${request['signout_time']}'),
-                    Text('Working Hours: ${request['working_hour']}'),
-                    Text('Status: ${request['status']}'),
-                  ],
+          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10.0),
+          ),
+          elevation: 4, // Add shadow for better aesthetics
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Requestor Details
+                Text(
+                  '${request['first_name']} ${request['last_name']}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              if (attendanceId != null)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: _buildActionButtons(attendanceId, index),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
+                const SizedBox(height: 4),
+                Text(
+                  'Place: ${request['place']}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                  ),
+                ),
+
+                // Attendance Details
+                const SizedBox(height: 8),
+                Text(
+                  'Date: ${request['atten_date']}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  'Sign In: ${request['signin_time']}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  'Sign Out: ${request['signout_time']}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  'Working Hours: ${request['working_hour']}',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                Text(
+                  'Status: ${request['status']}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _getStatusColor(request['status']),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                // Action Buttons
+                const SizedBox(height: 16),
+                if (attendanceId != null)
+                  _buildActionButtons(attendanceId, index)
+                else
+                  const Text(
                     'Invalid ID',
                     style: TextStyle(color: Colors.red),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 
 

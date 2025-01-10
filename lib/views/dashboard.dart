@@ -963,7 +963,7 @@ class _OverviewSectionState extends State<OverviewSection> {
         // Loan Applications Card
         if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
           OverviewCards(
-            title: 'Loan Applications',
+            title: 'Loans',
             count: loanCount,
             color: Color(0xFF0D9494).withOpacity(0.7),
             icon: Icons.attach_money,
