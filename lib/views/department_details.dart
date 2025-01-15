@@ -60,7 +60,30 @@ class DepartmentDetailPage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           Expanded(
-            child: ListView.builder(
+            child: department.employees.isEmpty
+                ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No employees found for this department.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : ListView.builder(
               itemCount: department.employees.length,
               itemBuilder: (context, index) {
                 final employee = department.employees[index];

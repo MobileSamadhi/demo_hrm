@@ -286,12 +286,23 @@ class DesignationDetailPage extends StatelessWidget {
         padding: const EdgeInsets.all(8.0),
         child: designation.employees.isEmpty
             ? Center(
-          child: Text(
-            'No employees found for this designation.',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.people_alt_outlined, // Icon for empty state
+                size: 80, // Adjust the size of the icon
+                color: Colors.grey[400], // Light gray color to match the theme
+              ),
+              SizedBox(height: 16), // Spacing between the icon and the message
+              Text(
+                'No employees found for this designation.',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
           ),
         )
             : ListView.builder(

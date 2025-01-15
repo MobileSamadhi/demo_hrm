@@ -114,11 +114,26 @@ class _DisciplinaryPageState extends State<DisciplinaryPage> {
                   );
                 } else if (_filteredDisciplinaryList.isEmpty) {
                   return Center(
-                    child: Text(
-                      'No records found',
-                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off, // Icon for no records found
+                          size: 80, // Size of the icon
+                          color: Colors.grey[400], // Light gray color for subtle appearance
+                        ),
+                        SizedBox(height: 16), // Space between the icon and the text
+                        Text(
+                          'No records found',
+                          style: TextStyle(
+                            fontSize: 18, // Slightly larger font size for readability
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
                   );
+
                 }
 
                 return ListView.builder(
