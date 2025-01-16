@@ -37,7 +37,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   void initState() {
     super.initState();
     _workingHoursController.text = '0 hours'; // Initialize working hours
-    _employeeRole = 'Employee'; // Default role
+    _employeeRole =  'Select Here..'; // Default role
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -226,7 +226,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
               SizedBox(height: 16),
               DropdownButtonFormField<String?>(
                 value: _employeeRole, // Holds the selected role or null
-                items: ['Employee', 'Manager', 'Admin', 'Super Admin']
+                items: ['Select Here..','Employee', 'Manager', 'Admin', 'Super Admin']
                     .map((role) => DropdownMenuItem(
                   value: role,
                   child: Text(role),
@@ -243,7 +243,12 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                     print('Selected role: $_employeeRole'); // Debug log
                   });
                 },
-                validator: (value) => value == null || value.isEmpty ? 'Please select a role' : null,
+                validator: (value) {
+                  if (value == null || value == 'Select Here..') {
+                    return 'Please select a user role';
+                  }
+                  return null;
+                },
               ),
 
               SizedBox(height: 20),

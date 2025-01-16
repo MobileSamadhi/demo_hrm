@@ -396,6 +396,7 @@ class _DashboardPageState extends State<DashboardPage> {
               icon: Icons.person_off,
               children: [
                 // Holiday and Leave Application - visible to all users
+                if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
                 _buildDrawerItem(
                   text: 'Holiday',
                   onTap: () {

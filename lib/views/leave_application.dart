@@ -25,7 +25,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
   String _leaveDuration = '';
   String _applyDate = DateTime.now().toLocal().toString().split(' ')[0]; // Today's date
   String _reason = '';
-  String _role = 'EMPLOYEE'; // Default role
+  String _role = 'Select Here..'; // Default role
 
   // Submit form and send the data to the server
   void _submitForm() async {
@@ -176,6 +176,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
                   icon: Icons.person,
                   value: _role,
                   items: [
+                    'Select Here..',
                     'EMPLOYEE',
                     'MANAGER',
                     'ADMIN',
@@ -319,7 +320,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
       onChanged: onChanged,
       validator: (value) {
         if (value == null || value == 'Select Here..') {
-          return 'Please select a leave type';
+          return 'Please select a value from the list.';
         }
         return null;
       },
