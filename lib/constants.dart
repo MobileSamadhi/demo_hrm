@@ -46,6 +46,7 @@ const String fetchAttendanceRequestsEndpoint = "/fetch_attendance_requests.php";
 const String updateAttendanceStatusEndpoint = "/update_attendance_status.php";
 const String leaveSummaryEndpoint = "/leave_summary.php";
 const String attendanceSummaryEndpoint = "/attendance_summary.php";
+const String authEndpoint = "/Auth.php";
 
 
 

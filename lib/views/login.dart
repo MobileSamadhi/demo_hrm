@@ -195,29 +195,103 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Future<bool> _verifyCompanyCode(String companyCode) async {
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your Auth.php endpoint URL
+    print('Fetching database details from: $url');
+
     try {
       final response = await http.post(
-        Uri.parse(getApiUrl(verifyCompanyEndpoint)),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'company_code': companyCode}),
       );
 
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        var responseData = jsonDecode(response.body);
-        return responseData['status'] == 'success';
+        final List<dynamic> data = jsonDecode(response.body); // Change this to List<dynamic>
+
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0]; // Access the first item in the list
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Error: ${data[0]['status']}');
+        }
       } else {
-        print('Server error: ${response.statusCode}, Body: ${response.body}');
+        print('Failed to fetch database details. Status Code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+    }
+    return null; // Return null if something goes wrong
+  }
+
+
+
+  Future<bool> _verifyCompanyCode(String companyCode) async {
+    try {
+      // Step 1: Fetch database details
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+
+      if (dbDetails == null) {
+        print('Database details could not be fetched.');
         return false;
       }
-    } on SocketException {
-      print('No Internet connection or failed DNS lookup');
-      return false;
-    } catch (error) {
-      print('Unexpected error: $error');
-      return false;
+
+      final url = getApiUrl(verifyCompanyEndpoint);
+      print('Verifying company code at: $url');
+
+      final body = jsonEncode({
+        'company_code': companyCode,
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+      });
+
+      print('Request Body: $body');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: body,
+      );
+
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['status'] == 'success') {
+          final List<dynamic> dataList = data['data'];
+          if (dataList.isNotEmpty) {
+            final dbDetails = dataList[0]; // Access the first object in the list
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            await prefs.setString('database_host', dbDetails['Location']); // Adjust if needed
+            await prefs.setString('database_name', dbDetails['CompanyName']); // Adjust if needed
+            return true;
+          }
+        } else {
+          print('Error: ${data['error']}');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        print('Server error: ${response.statusCode}, Message: ${errorData['error']}');
+      }
+    } catch (e) {
+      print('Error verifying company code: $e');
     }
+    return false;
   }
+
+
 
 
   Future<bool> login(String epfNumber, String password) async {
