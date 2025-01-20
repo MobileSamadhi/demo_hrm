@@ -3,6 +3,7 @@ import 'dart:io'; // For platform checks
 import 'package:flutter/cupertino.dart'; // For iOS widgets
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'dashboard.dart';
 
@@ -68,24 +69,85 @@ class _AttendancePageState extends State<AttendancePage> {
   List<Attendance> _filteredAttendanceList = [];
   TextEditingController _searchController = TextEditingController();
 
+  /// Fetches the database details for the given company code.
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        }
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+    }
+    return null;
+  }
+
+  /// Fetches attendance records from the server.
   Future<List<Attendance>> fetchAttendance() async {
-    final url = getApiUrl(attendanceEndpoint);
-    final response = await http.get(Uri.parse(url));
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
 
-    if (response.statusCode == 200) {
-      List jsonResponse = json.decode(response.body);
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
 
-      // Map JSON to Attendance objects and sort by `attenDate` in descending order
-      List<Attendance> attendanceList = jsonResponse
-          .map<Attendance>((data) => Attendance.fromJson(data))
-          .toList()
-        ..sort((a, b) => b.attenDate.compareTo(a.attenDate)); // Descending order
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
 
-      return attendanceList;
-    } else {
-      throw Exception('Failed to load attendance');
+    final url = getApiUrl(attendanceEndpoint); // Replace with your actual attendance endpoint.
+
+    try {
+      // Make the POST request with database credentials
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        // Parse JSON response
+        final List<dynamic> jsonResponse = json.decode(response.body);
+
+        // Map JSON to Attendance objects and sort by `attenDate` in descending order
+        final List<Attendance> attendanceList = jsonResponse
+            .map<Attendance>((data) => Attendance.fromJson(data))
+            .toList()
+          ..sort((a, b) => b.attenDate.compareTo(a.attenDate)); // Descending order
+
+        return attendanceList;
+      } else {
+        throw Exception('Failed to load attendance. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Log and rethrow the exception
+      print('Error fetching attendance: $e');
+      rethrow;
     }
   }
+
 
 
   @override

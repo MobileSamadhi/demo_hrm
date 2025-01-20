@@ -160,10 +160,12 @@ class _LoginPageState extends State<LoginPage> {
                       text: 'Login',
                       onPressed: () async {
                         if (epfNumberController.text.isNotEmpty &&
-                            passwordController.text.isNotEmpty) {
+                            passwordController.text.isNotEmpty &&
+                            companyCodeController.text.isNotEmpty) {
                           bool isLoggedIn = await login(
-                            epfNumberController.text,
-                            passwordController.text,
+                            epfNumber: epfNumberController.text,
+                            password: passwordController.text,
+                            companyCode: companyCodeController.text,
                           );
                           if (isLoggedIn) {
                             await _saveCredentials();
@@ -171,7 +173,9 @@ class _LoginPageState extends State<LoginPage> {
                             if (managerEmId.isNotEmpty) {
                               Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(builder: (context) => DashboardPage(emId: managerEmId)),
+                                MaterialPageRoute(
+                                  builder: (context) => DashboardPage(emId: managerEmId),
+                                ),
                               );
                             } else {
                               _showSnackbar(context, 'Unable to fetch manager details');
@@ -180,10 +184,11 @@ class _LoginPageState extends State<LoginPage> {
                             _showSnackbar(context, 'Invalid EPF number or password');
                           }
                         } else {
-                          _showSnackbar(context, 'Please enter both EPF number and password');
+                          _showSnackbar(context, 'Please fill all fields');
                         }
                       },
                     ),
+
                   ],
                   SizedBox(height: 15),
                 ],
@@ -294,38 +299,67 @@ class _LoginPageState extends State<LoginPage> {
 
 
 
-  Future<bool> login(String epfNumber, String password) async {
+  Future<bool> login({
+    required String epfNumber,
+    required String password,
+    required String companyCode,
+  }) async {
     try {
+      // Step 1: Fetch database details using company code
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+
+      if (dbDetails == null) {
+        print('Database details could not be fetched.');
+        return false;
+      }
+
+      // Step 2: Make the login request
+      final url = getApiUrl(loginEndpoint); // Replace with your login endpoint URL
+      print('Sending login request to: $url');
+
       final response = await http.post(
-        Uri.parse(getApiUrl(loginEndpoint)),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'epf_number': epfNumber,
           'password': password,
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
         }),
       );
 
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
+
         if (data['status'] == 'success') {
+          // Store session details in shared preferences
           SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('session_id', data['session_id']);
           await prefs.setString('role', data['role']);
           await prefs.setString('em_id', data['em_id']);
           await prefs.setString('em_code', data['em_code']);
 
-          // Verify if stored correctly
-          print("Stored em_id: ${prefs.getString('em_id')}");
+          print("Login successful: Session ID: ${data['session_id']}");
           return true;
-
+        } else {
+          print("Login failed: ${data['error']}");
         }
+      } else {
+        final errorData = jsonDecode(response.body);
+        print("Server error: ${errorData['error']}");
       }
-      return false;
     } catch (error) {
       print('Error logging in: $error');
-      return false;
     }
+    return false;
   }
+
 
   Future<String> _getManagerEmId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();

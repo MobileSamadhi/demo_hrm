@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart'; // Replace with your constants file path
 import 'dashboard.dart'; // Replace with your dashboard page file path
@@ -28,13 +29,78 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     _fetchAttendanceRequests();
   }
 
-  Future<void> _fetchAttendanceRequests() async {
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your Auth.php endpoint
     try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        }
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+    }
+    return null;
+  }
+
+  Future<void> _fetchAttendanceRequests() async {
+    setState(() {
+      isLoading = true;
+      hasError = false;
+    });
+
+    try {
+      // Fetch the company code from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        setState(() {
+          hasError = true;
+          isLoading = false;
+        });
+        _showSnackbar('Company code is missing. Please log in again.');
+        return;
+      }
+
+      // Fetch database details
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        setState(() {
+          hasError = true;
+          isLoading = false;
+        });
+        _showSnackbar('Failed to fetch database details. Please log in again.');
+        return;
+      }
+
+      // Prepare API request
       final url = getApiUrl(fetchAttendanceRequestsEndpoint);
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'em_id': widget.emId, 'role': widget.role}),
+        body: json.encode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+          'em_id': widget.emId,
+          'role': widget.role,
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -67,18 +133,57 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     }
   }
 
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
 
   Future<void> _updateAttendanceStatus(int attendanceId, String status, int index) async {
     try {
+      // Get the company code from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        _showSnackbar('Company code is missing. Please log in again.');
+        return;
+      }
+
+      // Fetch database details
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        _showSnackbar('Failed to fetch database details. Please log in again.');
+        return;
+      }
+
+      // Prepare the API URL
       final url = getApiUrl(updateAttendanceStatusEndpoint);
+
+      // Make the HTTP POST request
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({'attendance_id': attendanceId, 'status': status, 'role': widget.role}),
+        body: json.encode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+          'attendance_id': attendanceId,
+          'status': status,
+          'role': widget.role,
+        }),
       );
 
+      // Handle the response
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
+
         if (responseData['status'] == 'success') {
           _showSnackbar('Attendance status updated to $status');
 
@@ -95,10 +200,6 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     } catch (e) {
       _showSnackbar('An error occurred: $e');
     }
-  }
-
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
