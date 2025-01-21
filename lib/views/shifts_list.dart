@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hrm_system/constants.dart';
 import 'package:hrm_system/views/shift_management.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class Shifts {
   final int SFID;
@@ -100,19 +101,126 @@ class _ShiftsPageState extends State<ShiftsPage> {
     });
   }
 
-  Future<List<Shifts>> fetchShifts() async {
-    final url = getApiUrl(shiftsEndpoint);
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
-    final response = await http.get(Uri.parse(url));
+    try {
+      // Send POST request to fetch database details
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
 
-    if (response.statusCode == 200) {
-      Map<String, dynamic> jsonResponse = json.decode(response.body);
-      List shiftsJson = jsonResponse['data'];
-      return shiftsJson.map<Shifts>((data) => Shifts.fromJson(data)).toList();
-    } else {
-      throw Exception('Failed to load shifts');
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse response body
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Validate the response data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response data: $data');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error: Failed to fetch database details. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching database details: $e');
+      return null;
     }
   }
+
+  /// Fetch department data
+  Future<List<Shifts>> fetchShifts() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
+
+    // Ensure company code is available
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(shiftsEndpoint); // Replace with your actual endpoint
+
+    try {
+      // Prepare request body
+      final requestBody = jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+      });
+
+      // Log the request body
+      print('Request Body: $requestBody');
+
+      // Send POST request to fetch shifts
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: requestBody,
+      );
+
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse the response body
+        final jsonResponse = json.decode(response.body);
+
+        // Check if the response contains a "data" key
+        if (jsonResponse is Map<String, dynamic> && jsonResponse.containsKey('data')) {
+          final data = jsonResponse['data'];
+
+          // Ensure "data" is a list
+          if (data is List<dynamic>) {
+            return data.map<Shifts>((shift) => Shifts.fromJson(shift)).toList();
+          } else {
+            throw Exception('Unexpected data format: Expected a list.');
+          }
+        } else if (jsonResponse is Map<String, dynamic> && jsonResponse.containsKey('error')) {
+          throw Exception(jsonResponse['error']);
+        } else {
+          throw Exception('Unexpected response format.');
+        }
+      } else {
+        // Handle non-200 responses
+        print('Error: Failed to load Shifts. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        throw Exception('Failed to load Shifts. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching Shifts: $e');
+      throw Exception('Error fetching Shifts: $e');
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {

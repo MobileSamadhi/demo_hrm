@@ -3,6 +3,7 @@ import 'dart:io'; // For platform checks
 import 'package:flutter/cupertino.dart'; // For iOS widgets
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'dashboard.dart';
 
@@ -96,26 +97,108 @@ class _EmployeeSalaryPageState extends State<EmployeeSalaryPage> {
     return '$apiDomain$endpoint';
   }
 
-  Future<List<EmployeeSalary>> fetchEmployeeSalary() async {
-    final String url = getApiUrl(empSalaryEndpoint);  // Use the helper function to get the full API URL
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
-    final response = await http.get(Uri.parse(url));
+    try {
+      // Send POST request to fetch database details
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
 
-    if (response.statusCode == 200) {
-      try {
-        List jsonResponse = json.decode(response.body);
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
-        // Check if the response is null or empty
-        if (jsonResponse == null || jsonResponse.isEmpty) {
-          return [];
+      if (response.statusCode == 200) {
+        // Parse response body
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Validate the response data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response data: $data');
+          return null;
         }
-
-        return jsonResponse.map<EmployeeSalary>((data) => EmployeeSalary.fromJson(data)).toList();
-      } catch (e) {
-        throw Exception('Failed to parse the response: $e');
+      } else {
+        // Handle non-200 status codes
+        print('Error: Failed to fetch database details. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
       }
-    } else {
-      throw Exception('Failed to load employee salaries, Status code: ${response.statusCode}');
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+  /// Fetch department data
+  Future<List<EmployeeSalary>> fetchEmployeeSalary() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
+
+    // Ensure company code is available
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(empSalaryEndpoint); // Replace with your actual endpoint
+
+    try {
+      // Prepare request body
+      final requestBody = jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+      });
+
+      // Log the request body
+      print('Request Body: $requestBody');
+
+      // Send POST request to fetch departments
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: requestBody,
+      );
+
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse and map the response data to Department objects
+        final List<dynamic> jsonResponse = json.decode(response.body);
+        return jsonResponse.map<EmployeeSalary>((data) =>EmployeeSalary.fromJson(data)).toList();
+      } else {
+        // Handle non-200 responses
+        print('Error: Failed to load employees salary: Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        throw Exception('Failed to load employees salary. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching employees salary: $e');
+      throw Exception('Error fetching employees salary: $e');
     }
   }
 

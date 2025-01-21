@@ -2,6 +2,7 @@ import 'dart:io'; // For platform-specific checks
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import 'dashboard.dart';
@@ -138,14 +139,108 @@ class _LoanPageState extends State<LoanPage> {
     });
   }
 
-  Future<List<Loan>> fetchLoans() async {
-    final response = await http.get(Uri.parse(getApiUrl(loanEndpoint)));
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
-    if (response.statusCode == 200) {
-      List jsonResponse = json.decode(response.body);
-      return jsonResponse.map<Loan>((data) => Loan.fromJson(data)).toList();
-    } else {
-      throw Exception('Failed to load loans');
+    try {
+      // Send POST request to fetch database details
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse response body
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Validate the response data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response data: $data');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error: Failed to fetch database details. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+  /// Fetch loan data
+  Future<List<Loan>> fetchLoans() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
+
+    // Ensure company code is available
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(loanEndpoint); // Replace with your actual endpoint
+
+    try {
+      // Prepare request body
+      final requestBody = jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+      });
+
+      // Log the request body
+      print('Request Body: $requestBody');
+
+      // Send POST request to fetch loans
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: requestBody,
+      );
+
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse and map the response data to Loan objects
+        final List<dynamic> jsonResponse = json.decode(response.body);
+        return jsonResponse.map<Loan>((data) => Loan.fromJson(data)).toList();
+      } else {
+        // Handle non-200 responses
+        print('Error: Failed to load loans. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        throw Exception('Failed to load loans. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching loans: $e');
+      throw Exception('Error fetching loans: $e');
     }
   }
 

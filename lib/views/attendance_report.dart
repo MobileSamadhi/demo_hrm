@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io'; // Needed for Platform.isIOS and Platform.isAndroid
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'dashboard.dart';
 
@@ -24,7 +25,56 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
     super.initState();
   }
 
+  /// Fetches the database details for the given company code.
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        }
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+    }
+    return null;
+  }
+
   Future<void> _fetchAttendanceData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
+
+    if (companyCode == null || companyCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Company code is missing. Please log in again.')),
+      );
+      return;
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch database details. Please log in again.')),
+      );
+      return;
+    }
+
+    print('Database details: $dbDetails'); // Debugging
+
     String startDate = _startDateController.text;
     String endDate = _endDateController.text;
     String status = _selectedStatus ?? 'All';
@@ -37,32 +87,62 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
       return;
     }
 
-    // Use the attendanceReportEndpoint constant directly
-    String url = getApiUrl(attendanceReportEndpoint) +
-        '?start_date=$startDate&end_date=$endDate&status=$status&place=$place';
-
+    final url = getApiUrl(attendanceReportEndpoint); // Replace with your actual attendance endpoint
 
     try {
-      var response = await http.get(Uri.parse(url));
+      // Make the POST request with database credentials, filters, and company code
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode, // Include company_code in the payload
+          'start_date': startDate,
+          'end_date': endDate,
+          'status': status,
+          'place': place,
+        }),
+      );
+
+      print('Response status: ${response.statusCode}'); // Debugging
+      print('Response body: ${response.body}'); // Debugging
 
       if (response.statusCode == 200) {
-        setState(() {
-          _attendanceData = List<Map<String, dynamic>>.from(json.decode(response.body));
+        final result = jsonDecode(response.body);
+        if (result['status'] == 'success') {
+          setState(() {
+            _attendanceData = List<Map<String, dynamic>>.from(result['data']);
 
-          // Map and sort the data by `atten_date` in descending order
-          _attendanceData = _attendanceData.map((record) {
-            record['status'] = _mapStatusFromDatabase(record['status']);
-            return record;
-          }).toList()
-            ..sort((a, b) => b['atten_date'].compareTo(a['atten_date']));
-        });
+            // Map and sort the data by atten_date in descending order
+            _attendanceData = _attendanceData.map((record) {
+              record['status'] = _mapStatusFromDatabase(record['status']);
+              return record;
+            }).toList()
+              ..sort((a, b) => b['atten_date'].compareTo(a['atten_date']));
+          });
+        } else {
+          setState(() {
+            _attendanceData.clear();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'No attendance records found')),
+          );
+        }
       } else {
-        throw Exception('Failed to load attendance data');
+        print('Error details: ${response.body}'); // Log error details
+        throw Exception('Failed to load attendance. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      print(e.toString());
+      print('Error fetching attendance data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching attendance data.')),
+      );
     }
   }
+
 
 
   String _mapStatusFromDatabase(String dbStatus) {
