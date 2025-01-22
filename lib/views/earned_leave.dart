@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hrm_system/constants.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dashboard.dart';
 
@@ -24,13 +25,89 @@ class _EarnLeavePageState extends State<EarnLeavePage> {
     _fetchLeaveData();
   }
 
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+    try {
+      // Send POST request to fetch database details
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse response body
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Validate the response data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response data: $data');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error: Failed to fetch database details. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
   Future<void> _fetchLeaveData() async {
     try {
+      // Fetch company code from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details using the company code
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details.');
+      }
+
+      // Prepare API URL
       final url = getApiUrl(earnLeaveEndpoint);
 
-      final response = await http.get(Uri.parse(url));
+      // Add database credentials to the request headers if needed
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+        }),
+      );
+
       if (response.statusCode == 200) {
-        List<dynamic> data = json.decode(response.body);
+        // Parse response and update the state
+        List<dynamic> data = jsonDecode(response.body);
         setState(() {
           _leaveData = List<Map<String, dynamic>>.from(data.map((entry) => {
             'em_id': entry['em_id'] ?? 'N/A',
@@ -41,15 +118,17 @@ class _EarnLeavePageState extends State<EarnLeavePage> {
             'end_date': entry['end_date'] ?? 'N/A',
             'leave_duration': entry['leave_duration'] ?? '0',
           }));
-          _filteredData = _leaveData;
+          _filteredData = _leaveData; // Update filtered data
         });
       } else {
-        throw Exception('Failed to load leave data');
+        throw Exception('Failed to load leave data. Status code: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching leave data: $e');
     }
   }
+
+
 
   Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
     DateTime? pickedDate = await showDatePicker(

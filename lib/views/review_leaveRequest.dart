@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
 import 'dashboard.dart';
@@ -28,33 +29,101 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     _fetchLeaveRequests();  // Fetch the leave requests when the page is initialized
   }
 
-  // Function to fetch leave requests
-  Future<void> _fetchLeaveRequests() async {
-    try {
-      // Use getApiUrl to dynamically construct the full URL
-      final url = getApiUrl(reviewLeaveRequestEndpoint);
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
+    try {
+      print('Fetching database details for company code: $companyCode');
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'em_id': widget.emId,
-          'role': widget.role,  // Pass role to the API
-        }),
+        body: jsonEncode({'company_code': companyCode}),
       );
+
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print('Parsed database details response: $data');
+
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          print('Database details extracted: $dbDetails');
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response data: $data');
+          return null;
+        }
+      } else {
+        print('Failed to fetch database details. Status Code: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+  Future<void> _fetchLeaveRequests() async {
+    try {
+      print('Fetching leave requests...');
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+      print('Company code retrieved: $companyCode');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      print('Database details: $dbDetails');
+
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details.');
+      }
+
+      final url = getApiUrl(reviewLeaveRequestEndpoint);
+      final payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'em_id': widget.emId,
+        'role': widget.role, // Pass role to the API
+      };
+
+      print('Fetching leave requests with payload: $payload');
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
+        print('Parsed leave requests response: $responseData');
+
         if (responseData['status'] == 'success') {
           setState(() {
             leaveRequests = responseData['data'];
             isLoading = false;
           });
+          print('Leave requests loaded: $leaveRequests');
         } else {
           setState(() {
             hasError = true;
             isLoading = false;
           });
+          print('Error in API response: ${responseData['message']}');
           _showSnackbar('Error: ${responseData['message']}');
         }
       } else {
@@ -62,6 +131,7 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
           hasError = true;
           isLoading = false;
         });
+        print('Failed to fetch leave requests. Status Code: ${response.statusCode}');
         _showSnackbar('Failed to fetch data. Status code: ${response.statusCode}');
       }
     } catch (e) {
@@ -69,48 +139,70 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
         hasError = true;
         isLoading = false;
       });
+      print('Exception while fetching leave requests: $e');
       _showSnackbar('An error occurred: $e');
     }
   }
-
-  // Function to update the leave request status
   Future<void> _updateLeaveStatus(int leaveId, String status) async {
-    print('Updating leave status: LeaveID: $leaveId, Status: $status'); // Log request
-
+    print('Updating leave status: LeaveID: $leaveId, Status: $status');
     try {
-      final url = getApiUrl(updateLeaveStatusEndpoint);
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+      print('Company code retrieved: $companyCode');
 
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      print('Database details: $dbDetails');
+
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details.');
+      }
+
+      final url = getApiUrl(updateLeaveStatusEndpoint);
+      final payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'leave_id': leaveId,
+        'status': status,
+        'role': widget.role, // Pass the role of the current user
+      };
+
+      print('Updating leave status with payload: $payload');
       final response = await http.post(
         Uri.parse(url),
-        body: json.encode({
-          'leave_id': leaveId,
-          'status': status,
-          'role': widget.role,  // Pass the role of the current user
-        }),
         headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
       );
 
-      print('Response status code: ${response.statusCode}'); // Log response code
-      print('Response body: ${response.body}');  // Log response body
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
-        print('Response data: $responseData');  // Log response data
+        print('Parsed response for leave status update: $responseData');
+
         if (responseData['status'] == 'success') {
           _showSnackbar('Leave status updated to $status');
-          _fetchLeaveRequests(); // Refresh the leave requests after status update
+          await _fetchLeaveRequests(); // Refresh leave requests
         } else {
+          print('Error in leave status update: ${responseData['message']}');
           _showSnackbar('Error updating status: ${responseData['message']}');
         }
       } else {
+        print('Failed to update leave status. Status Code: ${response.statusCode}');
         _showSnackbar('Failed to update status. Status code: ${response.statusCode}');
       }
     } catch (e) {
+      print('Exception while updating leave status: $e');
       _showSnackbar('An error occurred: $e');
     }
   }
-
-
 
   // Helper function to show snackbars
   void _showSnackbar(String message) {

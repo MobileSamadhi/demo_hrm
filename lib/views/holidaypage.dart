@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:io'; // Import the dart:io library to access platform information
 import '../constants.dart';
@@ -49,40 +50,111 @@ class _HolidayPageState extends State<HolidayPage> {
     }
   }
 
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+    try {
+      // Send POST request to fetch database details
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse response body
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Validate the response data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response data: $data');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error: Failed to fetch database details. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      // Log any errors that occur
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
+      // Get form values
       final String holidayName = _holidayNameController.text;
       final String startDate = _startDateController.text;
       final String endDate = _endDateController.text;
       final String numberOfDays = _numberOfDaysController.text;
       final String year = _yearController.text;
 
-      final url = getApiUrl(holidayEndpoint);
-      final response = await http.post(
+      try {
+        // Fetch company code and database details
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        final String? companyCode = prefs.getString('company_code');
 
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'action': 'add',
-          'holiday_name': holidayName,
-          'from_date': startDate,
-          'to_date': endDate,
-          'number_of_days': numberOfDays,
-          'year': year,
-        }),
-      );
+        if (companyCode == null || companyCode.isEmpty) {
+          throw Exception('Company code is missing. Please log in again.');
+        }
 
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        final status = result['status'];
-        final message = result['message'] ?? 'Unknown error';
+        final dbDetails = await fetchDatabaseDetails(companyCode);
+        if (dbDetails == null) {
+          throw Exception('Failed to fetch database details.');
+        }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$status: $message')),
+        // Prepare API URL
+        final url = getApiUrl(holidayEndpoint);
+
+        // Send POST request with all required fields
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+            'company_code': companyCode,
+            'action': 'add',
+            'holiday_name': holidayName,
+            'from_date': startDate,
+            'to_date': endDate,
+            'number_of_days': numberOfDays,
+            'year': year,
+          }),
         );
-      } else {
+
+        if (response.statusCode == 200) {
+          final result = jsonDecode(response.body);
+          final status = result['status'];
+          final message = result['message'] ?? 'Unknown error';
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$status: $message')),
+          );
+        } else {
+          throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
+        }
+      } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to connect to the server')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }

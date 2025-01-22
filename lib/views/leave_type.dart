@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:hrm_system/constants.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dashboard.dart';
 
 class LeaveType {
@@ -41,16 +42,106 @@ class _LeaveTypePageState extends State<LeaveTypePage> {
   List<LeaveType> _filteredLeaveTypeList = [];
   TextEditingController _searchController = TextEditingController();
 
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+// Method to fetch department data
   Future<List<LeaveType>> fetchLeaveType() async {
-    final url = getApiUrl(leaveTypeEndpoint);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
 
-    final response = await http.get(Uri.parse(url));
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
 
-    if (response.statusCode == 200) {
-      List jsonResponse = json.decode(response.body);
-      return jsonResponse.map<LeaveType>((data) => LeaveType.fromJson(data)).toList();
-    } else {
-      throw Exception('Failed to load LeaveTypes');
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(leaveTypeEndpoint); // Replace with your actual endpoint
+
+    try {
+      // Log the request body before sending it
+      print('Sending request body: ${jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode, // Include company_code here
+      })}');
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode, // Ensure company_code is included in the request
+        }),
+      );
+
+      // Log the response body
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse JSON response
+        List<dynamic> jsonResponse = json.decode(response.body);
+
+        // Map JSON to Department objects
+        return jsonResponse.map<LeaveType>((data) => LeaveType.fromJson(data)).toList();
+      } else {
+        // Log the response body if the status code is not 200
+        print('Failed to load Leave Types. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        throw Exception('Failed to load Leave Types. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching Leave Types: $e');
+      throw Exception('Error fetching Leave Types: $e');
     }
   }
 

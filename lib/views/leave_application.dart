@@ -1,6 +1,7 @@
 import 'dart:io'; // For Platform checks
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../constants.dart';
 import 'dashboard.dart';
@@ -27,53 +28,116 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
   String _reason = '';
   String _role = 'Select Here..'; // Default role
 
-  // Submit form and send the data to the server
-  void _submitForm() async {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
-      // Prepare data to send to the server
-      final Map<String, dynamic> leaveData = {
-        'em_id': _employeeId,
-        'typeid': 1, // Replace with actual type ID if needed
-        'leave_type': _leaveType,
-        'start_date': _startDate.toLocal().toString().split(' ')[0], // Format as yyyy-MM-dd
-        'end_date': _endDate.toLocal().toString().split(' ')[0],
-        'leave_duration': _leaveDuration,
-        'apply_date': _applyDate,
-        'reason': _reason,
-        'role': _role, // Add the role to be sent to the server
-      };
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
 
-      try {
-        // Make a POST request to the PHP server
-        final url = getApiUrl(leaveApplicationEndpoint);
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
-        final response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(leaveData),
-        );
-
-        // Handle the server response
-        if (response.statusCode == 200) {
-          final responseData = jsonDecode(response.body);
-          if (responseData['status'] == 'success') {
-            _showSnackbar(context, 'Leave application submitted successfully');
-          } else {
-            _showSnackbar(context, responseData['message']);
-          }
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
         } else {
-          _showSnackbar(context, 'Failed to submit leave application. Status code: ${response.statusCode}');
+          print('Invalid response data: $data');
+          return null;
         }
-      } catch (e) {
-        _showSnackbar(context, 'An error occurred: $e');
+      } else {
+        print('Error: Failed to fetch database details. Status Code: ${response.statusCode}');
+        return null;
       }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
     }
   }
 
+  Future<void> _submitForm() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save(); // Save the form values into state variables
+
+      try {
+        // Fetch company code from shared preferences
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        final String? companyCode = prefs.getString('company_code');
+
+        if (companyCode == null || companyCode.isEmpty) {
+          throw Exception('Company code is missing. Please log in again.');
+        }
+
+        // Fetch database details using the company code
+        final dbDetails = await fetchDatabaseDetails(companyCode);
+        if (dbDetails == null) {
+          throw Exception('Failed to fetch database details.');
+        }
+
+        // Prepare API URL for submitting the leave application
+        final url = getApiUrl(leaveApplicationEndpoint);
+
+        // Prepare the payload with all required fields
+        final Map<String, dynamic> payload = {
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+          'em_id': _employeeId,
+          'typeid': 1, // Replace with actual type ID if needed
+          'leave_type': _leaveType,
+          'start_date': _startDate.toLocal().toString().split(' ')[0],
+          'end_date': _endDate.toLocal().toString().split(' ')[0],
+          'leave_duration': _leaveDuration,
+          'apply_date': _applyDate,
+          'reason': _reason,
+          'role': _role,
+        };
+
+        print('Submitting leave application with payload: $payload'); // Debug log
+
+        // Send the POST request to the server
+        final response = await http.post(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(payload),
+        );
+
+        // Handle the server response
+        print('Response Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final result = jsonDecode(response.body);
+          final String status = result['status'] ?? 'error';
+          final String message = result['message'] ?? 'Unknown error';
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$status: $message')),
+          );
+        } else {
+          throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
+        }
+      } catch (e) {
+        // Handle any exceptions during the process
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
   // Show a snackbar with a message
   void _showSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
