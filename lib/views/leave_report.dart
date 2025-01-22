@@ -2,6 +2,7 @@ import 'dart:io'; // For Platform-specific checks
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'dashboard.dart';
 
@@ -23,34 +24,140 @@ class _LeaveReportPageState extends State<LeaveReportPage> {
     _fetchLeaveData(); // Fetch leave data when the page loads
   }
 
-  // Fetch leave data from PHP API based on the selected leave status
-  Future<void> _fetchLeaveData() async {
-    // Build the query parameters
-    Map<String, String> queryParams = {};
-
-    // Only add leave_status if it is not 'All'
-    if (_selectedLeaveStatus != 'All') {
-      queryParams['leave_status'] = _selectedLeaveStatus!;
-    }
-
-    // Construct the API URL with query parameters
-    var url = Uri.parse(getApiUrl(leaveReportEndpoint)).replace(queryParameters: queryParams);
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
     try {
-      var response = await http.get(url);
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        setState(() {
-          // Parse the JSON response and update the leave data
-          _leaveData = List<Map<String, dynamic>>.from(json.decode(response.body));
-        });
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
       } else {
-        throw Exception('Failed to load leave data');
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
       }
     } catch (e) {
-      print(e.toString());
+      print('Error fetching database details: $e');
+      return null;
     }
   }
+
+
+  Future<void> _fetchLeaveData() async {
+    try {
+      // Log the selected leave status
+      print('Selected Leave Status: $_selectedLeaveStatus');
+
+      // Fetch company code from SharedPreferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Log the retrieved company code
+      print('Company Code: $companyCode');
+
+      // Fetch database details
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Log the fetched database details
+      print('Database Details: $dbDetails');
+
+      // Construct the API URL
+      final url = getApiUrl(leaveReportEndpoint);
+
+      // Build the request payload
+      final Map<String, dynamic> payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+      };
+
+      // Include leave_status only if it is not 'All'
+      if (_selectedLeaveStatus != null && _selectedLeaveStatus != 'All') {
+        payload['leave_status'] = _selectedLeaveStatus;
+      }
+
+      // Log the request payload
+      print('Request Payload: $payload');
+
+      // Send POST request to fetch leave data
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      // Log the response details
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse the response data
+        final List<dynamic> responseData = jsonDecode(response.body);
+
+        // Apply client-side filtering if necessary
+        List<Map<String, dynamic>> filteredData = List<Map<String, dynamic>>.from(responseData);
+
+        if (_selectedLeaveStatus != null && _selectedLeaveStatus != 'All') {
+          filteredData = filteredData.where((leave) {
+            return leave['leave_status'] == _selectedLeaveStatus;
+          }).toList();
+        }
+
+        // Update the leave data
+        setState(() {
+          _leaveData = filteredData;
+          print('Filtered Leave Data: $_leaveData');
+        });
+      } else {
+        // Log and throw an exception for non-200 responses
+        print('Failed to load leave data. Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        throw Exception('Failed to load leave data. Status Code: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Log and handle errors
+      print('Error fetching leave data: $e');
+      setState(() {
+        _leaveData = []; // Clear the data in case of error
+      });
+    }
+  }
+
+
+
 
   // Call _fetchLeaveData when the user applies the filter
   void _filterLeave() {

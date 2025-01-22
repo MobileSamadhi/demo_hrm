@@ -841,12 +841,80 @@ class _OverviewSectionState extends State<OverviewSection> {
     print('User role: $role'); // Debugging line
   }
 
-  // Function to fetch the correct count from the API
-  Future<void> _fetchFormerEmployeesCount() async {
-    try {
-      final url = getApiUrl(formerEmployeesCountEndpoint);
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
-      final response = await http.get(Uri.parse(url));
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+  Future<void> _fetchFormerEmployeesCount() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
+
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(formerEmployeesCountEndpoint); // Replace with your actual endpoint
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode, // Ensure company_code is included in the request
+        }),
+      );
+
+      // Log the response body
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
@@ -867,10 +935,37 @@ class _OverviewSectionState extends State<OverviewSection> {
 
   // Function to fetch the correct loan count from the API
   Future<void> _fetchLoansCount() async {
-    try {
-      final url = getApiUrl(loanCountEndpoint);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
 
-      final response = await http.get(Uri.parse(url));
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(loanCountEndpoint); // Replace with your actual endpoint
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode, // Ensure company_code is included in the request
+        }),
+      );
+
+      // Log the response body
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
@@ -890,12 +985,38 @@ class _OverviewSectionState extends State<OverviewSection> {
   }
 
   // Function to fetch the correct leave count from the API
-
   Future<void> _fetchLeaveCount() async {
-    try {
-      final url = getApiUrl(leaveCountEndpoint);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
 
-      final response = await http.get(Uri.parse(url));
+    if (companyCode == null || companyCode.isEmpty) {
+      throw Exception('Company code is missing. Please log in again.');
+    }
+
+    // Fetch database details
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      throw Exception('Failed to fetch database details. Please log in again.');
+    }
+
+    final url = getApiUrl(leaveCountEndpoint); // Replace with your actual endpoint
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode, // Ensure company_code is included in the request
+        }),
+      );
+
+      // Log the response body
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         var responseData = jsonDecode(response.body);
@@ -918,7 +1039,6 @@ class _OverviewSectionState extends State<OverviewSection> {
       print('Error: $e');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {

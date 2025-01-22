@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../constants.dart';
@@ -24,44 +25,128 @@ class _PendingLeaveOverviewState extends State<PendingLeaveOverview> {
     fetchPendingLeaves(); // Initial load without any filters
   }
 
-  // Fetch pending leave data from the PHP backend
-  Future<void> fetchPendingLeaves({String? startDate}) async {
-    // Start by constructing the base URL using the endpoint constant
-    String url = getApiUrl(fetchPendingLeavesEndpoint);
-
-    // Add query parameter for start_date if provided
-    if (startDate != null) {
-      url += '?start_date=$startDate';
-    }
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        var responseData = json.decode(response.body);
-        print("Response Data: $responseData"); // Debugging output
+        final List<dynamic> data = jsonDecode(response.body);
 
-        // Ensure responseData is parsed correctly
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+  // Fetch pending leave data from the PHP backend
+  Future<void> fetchPendingLeaves({String? startDate}) async {
+    try {
+      // Retrieve company code from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Construct the API URL
+      String url = getApiUrl(fetchPendingLeavesEndpoint);
+
+      // Append `startDate` query parameter if provided
+      if (startDate != null) {
+        url += '?start_date=$startDate';
+      }
+
+      // Log the request URL and payload
+      print('Fetching pending leaves from: $url');
+      print('Request Payload: ${jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+      })}');
+
+      // Make the POST request
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+        }),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse response data
+        final responseData = json.decode(response.body);
+
+        // Check for success status and pending leaves data
         if (responseData['status'] == 'success' && responseData['pending_leaves'] != null) {
+          // Update the state with pending leaves data
           setState(() {
             pendingLeaves = List<Map<String, dynamic>>.from(responseData['pending_leaves']);
           });
         } else {
-          print('No pending leaves or incorrect response structure');
+          // Handle the case where no pending leaves are found
+          print('No pending leaves or invalid response structure');
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text("No pending leaves found"),
           ));
         }
       } else {
-        print('Failed to load data: ${response.statusCode}');
+        // Handle non-200 status codes
+        print('Failed to load pending leaves: ${response.statusCode}');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Failed to load data: ${response.statusCode}"),
+          content: Text("Failed to load pending leaves: ${response.statusCode}"),
         ));
       }
     } catch (e) {
-      print('Error fetching data: $e');
+      // Log and handle any errors during the process
+      print('Error fetching pending leaves: $e');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Error fetching data"),
+        content: Text("Error fetching pending leaves"),
       ));
     }
   }

@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants.dart';
 import 'dashboard.dart';
 
 const String toDoTaskEndpoint = '/to-do-task.php'; // API endpoint constant
@@ -18,25 +20,99 @@ class ToDoListSection extends StatefulWidget {
   _ToDoListSectionState createState() => _ToDoListSectionState();
 }
 
+Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+  final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+  try {
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'company_code': companyCode}),
+    );
+
+    // Log the response code and body for debugging
+    print('Response Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+
+      // Check if the response contains valid data
+      if (data.isNotEmpty && data[0]['status'] == 1) {
+        final dbDetails = data[0];
+        return {
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+        };
+      } else {
+        print('Invalid response: ${data}');
+        return null;
+      }
+    } else {
+      // Handle non-200 status codes
+      print('Error fetching database details. Status code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+      return null;
+    }
+  } catch (e) {
+    print('Error fetching database details: $e');
+    return null;
+  }
+}
+
+
 class _ToDoListSectionState extends State<ToDoListSection> {
   final List<Map<String, dynamic>> tasks = [];
   final TextEditingController taskController = TextEditingController();
-  final String baseUrl = 'https://hrmmobidemo.synnexcloudpos.com'; // Base URL
 
-  // Function to construct the full API URL dynamically using the endpoint
-  String getApiUrl(String endpoint) {
-    return '$baseUrl$endpoint';
-  }
 
   Future<void> addTask() async {
-    if (taskController.text.isNotEmpty) {
+    try {
+      // Retrieve company code from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details dynamically
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Prepare the API URL
+      final url = getApiUrl(toDoTaskEndpoint);
+
+      // Log the request body for debugging
+      print('Sending request body: ${jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'action': 'add',
+        'to_dodata': taskController.text,
+        'date': DateTime.now().toIso8601String(),
+        'value': '1',
+      })}');
+
+      // Send the POST request to add a task
       final response = await http.post(
-        Uri.parse(getApiUrl(toDoTaskEndpoint)),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId,
+          'Session-ID': widget.sessionId, // Include session ID
         },
-        body: json.encode({
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
           'action': 'add',
           'to_dodata': taskController.text,
           'date': DateTime.now().toIso8601String(),
@@ -44,44 +120,122 @@ class _ToDoListSectionState extends State<ToDoListSection> {
         }),
       );
 
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      // Handle the server response
       if (response.statusCode == 200) {
-        setState(() {
-          tasks.add({
-            'to_dodata': taskController.text,
-            'date': DateTime.now().toIso8601String(),
-            'value': '1',
+        final responseData = jsonDecode(response.body);
+        if (responseData['status'] == 'success') {
+          setState(() {
+            tasks.add({
+              'to_dodata': taskController.text,
+              'date': DateTime.now().toIso8601String(),
+              'value': '1',
+            });
+            taskController.clear();
           });
-          taskController.clear();
-        });
+          print('Task added successfully.');
+        } else {
+          throw Exception(responseData['message'] ?? 'Unknown error occurred');
+        }
       } else {
-        throw Exception('Failed to add task');
+        throw Exception('Failed to add task. Status code: ${response.statusCode}');
       }
+    } catch (e) {
+      // Log and handle errors
+      print('Error adding task: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding task: $e')),
+      );
     }
   }
 
   Future<void> fetchTasks() async {
-    final response = await http.post(
-      Uri.parse(getApiUrl(toDoTaskEndpoint)),
-      headers: {
-        'Content-Type': 'application/json',
-        'Session-ID': widget.sessionId,
-      },
-      body: json.encode({
-        'action': 'fetch',
-        'user_id': widget.userId,
-      }),
-    );
+    try {
+      // Retrieve company code from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['status'] == 'success') {
-        setState(() {
-          tasks.clear();
-          tasks.addAll(data['data'].map<Map<String, dynamic>>((task) => task as Map<String, dynamic>));
-        });
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
       }
-    } else {
-      throw Exception('Failed to load tasks');
+
+      // Fetch database details dynamically
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Prepare the API URL
+      final url = getApiUrl(toDoTaskEndpoint);
+
+      // Log the request body for debugging
+      print('Sending request body: ${jsonEncode({
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'action': 'add',
+        'to_dodata': taskController.text,
+        'date': DateTime.now().toIso8601String(),
+        'value': '1',
+      })}');
+
+      // Send the POST request to add a task
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Session-ID': widget.sessionId, // Include session ID
+        },
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+          'action': 'add',
+          'to_dodata': taskController.text,
+          'date': DateTime.now().toIso8601String(),
+          'value': '1',
+        }),
+      );
+
+      // Log the response for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      // Handle the server response
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['status'] == 'success') {
+          setState(() {
+            tasks.add({
+              'to_dodata': taskController.text,
+              'date': DateTime.now().toIso8601String(),
+              'value': '1',
+            });
+            taskController.clear();
+          });
+          print('Task fetched successfully.');
+        } else {
+          throw Exception(responseData['message'] ?? 'Unknown error occurred');
+        }
+      } else {
+        throw Exception('Failed to fetch task. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Handle errors
+      print('Error feching task: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error feching task: $e')),
+      );
+    } finally {
+      // Optional: Add cleanup code if necessary
+      print('Add fetch attempt completed.');
     }
   }
 
@@ -109,6 +263,8 @@ class _ToDoListSectionState extends State<ToDoListSection> {
       throw Exception('Failed to delete task');
     }
   }
+
+
 
   @override
   void initState() {
