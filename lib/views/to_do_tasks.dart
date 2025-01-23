@@ -91,7 +91,7 @@ class _ToDoListSectionState extends State<ToDoListSection> {
 
         final response = await http.post(
           Uri.parse(getApiUrl(toDoTaskEndpoint)),
-          headers: {'Content-Type': 'application/json','Session-ID': widget.sessionId},
+          headers: {'Content-Type': 'application/json', 'Session-ID': widget.sessionId},
           body: jsonEncode(payload),
         );
 
@@ -109,6 +109,15 @@ class _ToDoListSectionState extends State<ToDoListSection> {
               });
               taskController.clear();
             });
+
+            // Show success Snackbar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Task added successfully!'),
+                backgroundColor: Colors.green, // Optional: Green background for success
+                duration: Duration(seconds: 2), // Duration of the Snackbar
+              ),
+            );
           } else {
             throw Exception(result['message']);
           }
@@ -118,11 +127,15 @@ class _ToDoListSectionState extends State<ToDoListSection> {
       } catch (e) {
         debugPrint('Error adding task: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red, // Optional: Red background for errors
+          ),
         );
       }
     }
   }
+
 
   Future<void> fetchTasks() async {
     try {
@@ -164,7 +177,12 @@ class _ToDoListSectionState extends State<ToDoListSection> {
         if (result['status'] == 'success') {
           setState(() {
             tasks.clear();
-            tasks.addAll(result['data'].map<Map<String, dynamic>>((task) => task as Map<String, dynamic>));
+            tasks.addAll(result['data'].map<Map<String, dynamic>>((task) => {
+              'id': task['id'], // Map the task ID properly
+              'to_dodata': task['to_dodata'],
+              'date': task['date'],
+              'value': task['value'],
+            }));
           });
         } else {
           throw Exception(result['message']);
@@ -180,8 +198,69 @@ class _ToDoListSectionState extends State<ToDoListSection> {
     }
   }
 
+
   Future<void> removeTask(int index) async {
+    // Show confirmation dialog before deleting the task
+    final bool? confirmDeletion = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white, // Dialog background color
+          title: Text(
+            'Delete Task',
+            style: TextStyle(
+              color: Color(0xFF0D9494), // Title color
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to delete this task?',
+            style: TextStyle(
+              color: Colors.black87, // Content color
+              fontSize: 16,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(false); // User cancels deletion
+              },
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Color(0xFF0D9494), // Cancel button text color
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(true); // User confirms deletion
+              },
+              child: Text(
+                'Delete',
+                style: TextStyle(
+                  color: Colors.red, // Delete button text color
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15), // Rounded corners for the dialog
+          ),
+        );
+      },
+    );
+
+    // If the user cancels the deletion, stop here
+    if (confirmDeletion != true) {
+      return;
+    }
+
     try {
+      debugPrint('Tasks list: $tasks'); // Debug the tasks list before deletion
+
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? companyCode = prefs.getString('company_code');
 
@@ -196,7 +275,7 @@ class _ToDoListSectionState extends State<ToDoListSection> {
 
       final taskId = tasks[index]['id'];
       if (taskId == null) {
-        throw Exception('Task ID is missing. Cannot delete task.');
+        throw Exception('Refresh the page');
       }
 
       final Map<String, dynamic> payload = {
@@ -206,7 +285,7 @@ class _ToDoListSectionState extends State<ToDoListSection> {
         'database_password': dbDetails['database_password'],
         'company_code': companyCode,
         'action': 'delete',
-        'id': tasks[index]['id'].toString(),
+        'id': taskId.toString(), // Use the mapped ID
       };
 
       debugPrint('Deleting task with payload: $payload');
@@ -229,6 +308,11 @@ class _ToDoListSectionState extends State<ToDoListSection> {
           setState(() {
             tasks.removeAt(index);
           });
+
+          // Show a success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Task deleted successfully!'), backgroundColor: Colors.red),
+          );
         } else {
           throw Exception(result['message']);
         }
@@ -237,11 +321,15 @@ class _ToDoListSectionState extends State<ToDoListSection> {
       }
     } catch (e) {
       debugPrint('Error deleting task: $e');
+
+      // Show an error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
+
+
 
 
   @override

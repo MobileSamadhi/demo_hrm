@@ -152,47 +152,6 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
     });
   }
 
-  Future<void> _downloadSalaryData(Map<String, dynamic> salary) async {
-    try {
-      List<List<dynamic>> rows = [
-        ["Field", "Value"],
-        ["Employee Name", "${salary['first_name']} ${salary['last_name']}"],
-        ["Month", salary['month'] ?? 'N/A'],
-        ["Year", salary['year'] ?? 'N/A'],
-        ["Basic Pay", salary['basic'] ?? 'N/A'],
-        ["House Rent", salary['house_rent'] ?? 'N/A'],
-        ["Bonus", salary['bonus'] ?? 'N/A'],
-        ["Medical", salary['medical'] ?? 'N/A'],
-        ["Bima", salary['bima'] ?? 'N/A'],
-        ["Tax", salary['tax'] ?? 'N/A'],
-        ["Loan", salary['loan'] ?? 'N/A'],
-        ["Provident Fund", salary['provident_fund'] ?? 'N/A'],
-        ["Addition", salary['addition'] ?? 'N/A'],
-        ["Deduction", salary['diduction'] ?? 'N/A'],
-        ["EPF (8%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.08).toStringAsFixed(2) : '0')],
-        ["EPF (12%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.12).toStringAsFixed(2) : '0')],
-        ["ETF (3%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.03).toStringAsFixed(2) : '0')],
-       // ["Total Pay", salary['total_pay'] ?? 'N/A'],
-      ];
-
-      String csvData = const ListToCsvConverter().convert(rows);
-
-      final directory = await getApplicationDocumentsDirectory();
-      final path = "${directory.path}/Salary_${salary['month']}_${salary['year']}.csv";
-
-      final file = File(path);
-      await file.writeAsString(csvData);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("File saved at $path")),
-      );
-    } catch (e) {
-      print("Error while generating CSV: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save file.")),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -336,14 +295,6 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
                     TextRow(label: 'ETF (3%)', value: 'LKR: ${etf.toStringAsFixed(2)}'),
                     //TextRow(label: 'Total Pay', value: 'LKR: ${double.parse(salary['total_pay'])}'),
                       const SizedBox(height: 10),
-                      TextButton.icon(
-                        onPressed: () => _downloadSalaryData(salary),
-                        icon: Icon(Icons.download, color: Color(0xFF0D9494)),
-                        label: Text(
-                          "Download",
-                          style: TextStyle(color: Color(0xFF0D9494)),
-                        ),
-                      ),
                     ],
                     ),
                       ),

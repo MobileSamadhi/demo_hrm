@@ -408,6 +408,14 @@ class _EditEducationPageState extends State<EditEducationPage> {
         final Map<String, dynamic> data = jsonDecode(response.body);
 
         if (data['status'] == 'success') {
+          // Show success Snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Education details updated successfully!'),
+              backgroundColor: Colors.green, // Green for success
+              duration: Duration(seconds: 3),
+            ),
+          );
           Navigator.pop(context, true); // Close the screen and indicate success
         } else {
           setState(() {
