@@ -206,7 +206,8 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
 
   // Helper function to show snackbars
   void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message),
+      backgroundColor: Colors.green));
   }
 
   @override

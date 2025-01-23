@@ -295,7 +295,8 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Information updated successfully!')),
+            const SnackBar(content: Text('Information updated successfully!'),
+              backgroundColor: Colors.green),
           );
         } else {
           setState(() {
@@ -317,7 +318,8 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text('Error: $e'),
+          backgroundColor: Colors.green),
       );
     }
   }
@@ -348,7 +350,7 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           child: _isLoading
               ? Center(child: CupertinoActivityIndicator())
               : _errorMessage.isNotEmpty
-              ? Center(child: Text(_errorMessage, style: TextStyle(color: Colors.red, fontSize: 16)))
+              ? Center(child: Text(_errorMessage, style: TextStyle(color: Colors.green, fontSize: 20)))
               : _buildEditForm(),
         ),
       ),

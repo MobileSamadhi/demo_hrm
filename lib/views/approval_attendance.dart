@@ -137,7 +137,7 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: Colors.green,
       ),
     );
   }

@@ -206,7 +206,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']),
-          backgroundColor: result['success'] ? Colors.green : Colors.red,
+          backgroundColor: result['success'] ? Colors.green : Colors.green,
         ),
       );
     }

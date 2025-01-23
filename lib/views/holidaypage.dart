@@ -147,7 +147,8 @@ class _HolidayPageState extends State<HolidayPage> {
           final message = result['message'] ?? 'Unknown error';
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$status: $message')),
+            SnackBar(content: Text('$status: $message'),
+              backgroundColor: Colors.green,),
           );
         } else {
           throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');

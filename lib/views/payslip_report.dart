@@ -172,7 +172,7 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
         ["EPF (8%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.08).toStringAsFixed(2) : '0')],
         ["EPF (12%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.12).toStringAsFixed(2) : '0')],
         ["ETF (3%)", (salary['basic'] != null ? (double.parse(salary['basic']) * 0.03).toStringAsFixed(2) : '0')],
-        ["Total Pay", salary['total_pay'] ?? 'N/A'],
+       // ["Total Pay", salary['total_pay'] ?? 'N/A'],
       ];
 
       String csvData = const ListToCsvConverter().convert(rows);
@@ -334,7 +334,7 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
                     TextRow(label: 'EPF (8%)', value: 'LKR: ${epfEmployee.toStringAsFixed(2)}'),
                     TextRow(label: 'EPF (12%)', value: 'LKR: ${epfEmployer.toStringAsFixed(2)}'),
                     TextRow(label: 'ETF (3%)', value: 'LKR: ${etf.toStringAsFixed(2)}'),
-                    TextRow(label: 'Total Pay', value: 'LKR: ${(double.parse(salary['total_pay']) - epfEmployee).toStringAsFixed(2)}'),
+                    //TextRow(label: 'Total Pay', value: 'LKR: ${double.parse(salary['total_pay'])}'),
                       const SizedBox(height: 10),
                       TextButton.icon(
                         onPressed: () => _downloadSalaryData(salary),

@@ -125,7 +125,8 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           final String message = result['message'] ?? 'Unknown error';
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$status: $message')),
+            SnackBar(content: Text('$status: $message'),
+              backgroundColor: Colors.green,),
           );
         } else {
           throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
@@ -133,7 +134,8 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
       } catch (e) {
         // Handle any exceptions during the process
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text('Error: $e'),
+            backgroundColor: Colors.green),
         );
       }
     }
