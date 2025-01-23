@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/cupertino.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../views/dashboard.dart';
 
 class PersonalInfo {
@@ -91,27 +92,106 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     _fetchPersonalInfo();
   }
 
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+
   Future<void> _fetchPersonalInfo() async {
     final String apiUrl = getApiUrl(personalInfoEndpoint);
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
     try {
+      // Fetch company code from SharedPreferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details using the company code
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Prepare the payload for the request
+      final Map<String, dynamic> payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'session_id': widget.sessionId, // Include session ID if required
+      };
+
+      print('Fetching personal information with payload: $payload'); // Debug log
+
+      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Session-ID': widget.sessionId,
+          'Content-Type': 'application/json',
+          'Session-ID': widget.sessionId, // Include Session-ID if needed
         },
-        body: {
-          'session_id': widget.sessionId,
-        },
+        body: jsonEncode(payload),
       );
 
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+        final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['status'] == 'success') {
           setState(() {
             _personalInfo = PersonalInfo.fromJson(data['data']);
             _isLoading = false;
 
+            // Initialize controllers with the fetched personal information
             firstNameController = TextEditingController(text: _personalInfo?.firstName);
             lastNameController = TextEditingController(text: _personalInfo?.lastName);
             emailController = TextEditingController(text: _personalInfo?.email);
@@ -125,13 +205,13 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
           });
         } else {
           setState(() {
-            _errorMessage = data['message'];
+            _errorMessage = data['message'] ?? 'Unknown error occurred.';
             _isLoading = false;
           });
         }
       } else {
         setState(() {
-          _errorMessage = 'Failed to fetch personal information.';
+          _errorMessage = 'Failed to fetch personal information. HTTP Status: ${response.statusCode}';
           _isLoading = false;
         });
       }
@@ -143,10 +223,31 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
     }
   }
 
+
   Future<void> _savePersonalInfo() async {
     final String apiUrl = getApiUrl(updatePersonalInfoEndpoint);
 
     setState(() {
+      _isLoading = true; // Show a loading indicator
+      _errorMessage = '';
+    });
+
+    try {
+      // Fetch company code from SharedPreferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details using the company code
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Update _personalInfo with the current form data
       _personalInfo?.firstName = firstNameController.text;
       _personalInfo?.lastName = lastNameController.text;
       _personalInfo?.email = emailController.text;
@@ -157,41 +258,67 @@ class _PersonalInfoPageState extends State<PersonalInfoPage> {
       _personalInfo?.bloodGroup = bloodGroupController.text;
       _personalInfo?.nid = nidController.text;
       _personalInfo?.emJoiningDate = joiningDateController.text;
-    });
 
-    try {
+      // Prepare the payload for the request
+      final Map<String, dynamic> payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'session_id': widget.sessionId,
+        'data': _personalInfo?.toJson(),
+      };
+
+      print('Saving personal information with payload: $payload'); // Debug log
+
+      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
           'Session-ID': widget.sessionId,
         },
-        body: json.encode({
-          'session_id': widget.sessionId,
-          'data': _personalInfo?.toJson(),
-        }),
+        body: jsonEncode(payload),
       );
 
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+        final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['status'] == 'success') {
           setState(() {
+            _isLoading = false;
             _errorMessage = 'Information updated successfully!';
           });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Information updated successfully!')),
+          );
         } else {
           setState(() {
-            _errorMessage = data['message'];
+            _isLoading = false;
+            _errorMessage = data['message'] ?? 'Unknown error occurred.';
           });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(data['message'] ?? 'Unknown error')),
+          );
         }
       } else {
-        setState(() {
-          _errorMessage = 'Failed to save changes.';
-        });
+        throw Exception('Failed to save personal information. HTTP Status: ${response.statusCode}');
       }
     } catch (e) {
       setState(() {
+        _isLoading = false;
         _errorMessage = 'An error occurred: $e';
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 

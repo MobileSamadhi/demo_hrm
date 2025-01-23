@@ -8,8 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'dashboard.dart';
 
-const String toDoTaskEndpoint = '/to-do-task.php'; // API endpoint constant
-
 class ToDoListSection extends StatefulWidget {
   final String userId;
   final String sessionId;
@@ -20,94 +18,64 @@ class ToDoListSection extends StatefulWidget {
   _ToDoListSectionState createState() => _ToDoListSectionState();
 }
 
-Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
-  final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
-
-  try {
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'company_code': companyCode}),
-    );
-
-    // Log the response code and body for debugging
-    print('Response Code: ${response.statusCode}');
-    print('Response Body: ${response.body}');
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-
-      // Check if the response contains valid data
-      if (data.isNotEmpty && data[0]['status'] == 1) {
-        final dbDetails = data[0];
-        return {
-          'database_host': dbDetails['database_host'],
-          'database_name': dbDetails['database_name'],
-          'database_username': dbDetails['database_username'],
-          'database_password': dbDetails['database_password'],
-        };
-      } else {
-        print('Invalid response: ${data}');
-        return null;
-      }
-    } else {
-      // Handle non-200 status codes
-      print('Error fetching database details. Status code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-      return null;
-    }
-  } catch (e) {
-    print('Error fetching database details: $e');
-    return null;
-  }
-}
-
-
 class _ToDoListSectionState extends State<ToDoListSection> {
   final List<Map<String, dynamic>> tasks = [];
   final TextEditingController taskController = TextEditingController();
 
+  /// Fetch database details for a given company code
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
 
-  Future<void> addTask() async {
     try {
-      // Retrieve company code from shared preferences
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? companyCode = prefs.getString('company_code');
-
-      if (companyCode == null || companyCode.isEmpty) {
-        throw Exception('Company code is missing. Please log in again.');
-      }
-
-      // Fetch database details dynamically
-      final dbDetails = await fetchDatabaseDetails(companyCode);
-      if (dbDetails == null) {
-        throw Exception('Failed to fetch database details. Please log in again.');
-      }
-
-      // Prepare the API URL
-      final url = getApiUrl(toDoTaskEndpoint);
-
-      // Log the request body for debugging
-      print('Sending request body: ${jsonEncode({
-        'database_host': dbDetails['database_host'],
-        'database_name': dbDetails['database_name'],
-        'database_username': dbDetails['database_username'],
-        'database_password': dbDetails['database_password'],
-        'company_code': companyCode,
-        'action': 'add',
-        'to_dodata': taskController.text,
-        'date': DateTime.now().toIso8601String(),
-        'value': '1',
-      })}');
-
-      // Send the POST request to add a task
       final response = await http.post(
         Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId, // Include session ID
-        },
-        body: jsonEncode({
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      debugPrint('Response Code: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          debugPrint('Invalid response data: $data');
+          return null;
+        }
+      } else {
+        debugPrint('Failed to fetch database details. Status Code: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+  Future<void> addTask() async {
+    if (taskController.text.isNotEmpty) {
+      try {
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        final String? companyCode = prefs.getString('company_code');
+
+        if (companyCode == null || companyCode.isEmpty) {
+          throw Exception('Company code is missing. Please log in again.');
+        }
+
+        final dbDetails = await fetchDatabaseDetails(companyCode);
+        if (dbDetails == null) {
+          throw Exception('Failed to fetch database details.');
+        }
+
+        final Map<String, dynamic> payload = {
           'database_host': dbDetails['database_host'],
           'database_name': dbDetails['database_name'],
           'database_username': dbDetails['database_username'],
@@ -117,44 +85,47 @@ class _ToDoListSectionState extends State<ToDoListSection> {
           'to_dodata': taskController.text,
           'date': DateTime.now().toIso8601String(),
           'value': '1',
-        }),
-      );
+        };
 
-      // Log the response for debugging
-      print('Response Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
+        debugPrint('Adding task with payload: $payload');
 
-      // Handle the server response
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['status'] == 'success') {
-          setState(() {
-            tasks.add({
-              'to_dodata': taskController.text,
-              'date': DateTime.now().toIso8601String(),
-              'value': '1',
+        final response = await http.post(
+          Uri.parse(getApiUrl(toDoTaskEndpoint)),
+          headers: {'Content-Type': 'application/json','Session-ID': widget.sessionId},
+          body: jsonEncode(payload),
+        );
+
+        debugPrint('Response Code: ${response.statusCode}');
+        debugPrint('Response Body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final result = jsonDecode(response.body);
+          if (result['status'] == 'success') {
+            setState(() {
+              tasks.add({
+                'to_dodata': taskController.text,
+                'date': DateTime.now().toIso8601String(),
+                'value': '1',
+              });
+              taskController.clear();
             });
-            taskController.clear();
-          });
-          print('Task added successfully.');
+          } else {
+            throw Exception(result['message']);
+          }
         } else {
-          throw Exception(responseData['message'] ?? 'Unknown error occurred');
+          throw Exception('Failed to add task. Status Code: ${response.statusCode}');
         }
-      } else {
-        throw Exception('Failed to add task. Status code: ${response.statusCode}');
+      } catch (e) {
+        debugPrint('Error adding task: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
-    } catch (e) {
-      // Log and handle errors
-      print('Error adding task: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding task: $e')),
-      );
     }
   }
 
   Future<void> fetchTasks() async {
     try {
-      // Retrieve company code from shared preferences
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? companyCode = prefs.getString('company_code');
 
@@ -162,108 +133,115 @@ class _ToDoListSectionState extends State<ToDoListSection> {
         throw Exception('Company code is missing. Please log in again.');
       }
 
-      // Fetch database details dynamically
       final dbDetails = await fetchDatabaseDetails(companyCode);
       if (dbDetails == null) {
-        throw Exception('Failed to fetch database details. Please log in again.');
+        throw Exception('Failed to fetch database details.');
       }
 
-      // Prepare the API URL
-      final url = getApiUrl(toDoTaskEndpoint);
-
-      // Log the request body for debugging
-      print('Sending request body: ${jsonEncode({
+      final Map<String, dynamic> payload = {
         'database_host': dbDetails['database_host'],
         'database_name': dbDetails['database_name'],
         'database_username': dbDetails['database_username'],
         'database_password': dbDetails['database_password'],
         'company_code': companyCode,
-        'action': 'add',
-        'to_dodata': taskController.text,
-        'date': DateTime.now().toIso8601String(),
-        'value': '1',
-      })}');
+        'action': 'fetch',
+        'user_id': widget.userId,
+      };
 
-      // Send the POST request to add a task
+      debugPrint('Fetching tasks with payload: $payload');
+
       final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId, // Include session ID
-        },
-        body: jsonEncode({
-          'database_host': dbDetails['database_host'],
-          'database_name': dbDetails['database_name'],
-          'database_username': dbDetails['database_username'],
-          'database_password': dbDetails['database_password'],
-          'company_code': companyCode,
-          'action': 'add',
-          'to_dodata': taskController.text,
-          'date': DateTime.now().toIso8601String(),
-          'value': '1',
-        }),
+        Uri.parse(getApiUrl(toDoTaskEndpoint)),
+        headers: {'Content-Type': 'application/json', 'Session-ID': widget.sessionId},
+        body: jsonEncode(payload),
       );
 
-      // Log the response for debugging
-      print('Response Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
+      debugPrint('Response Code: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
 
-      // Handle the server response
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        if (responseData['status'] == 'success') {
+        final result = jsonDecode(response.body);
+        if (result['status'] == 'success') {
           setState(() {
-            tasks.add({
-              'to_dodata': taskController.text,
-              'date': DateTime.now().toIso8601String(),
-              'value': '1',
-            });
-            taskController.clear();
+            tasks.clear();
+            tasks.addAll(result['data'].map<Map<String, dynamic>>((task) => task as Map<String, dynamic>));
           });
-          print('Task fetched successfully.');
         } else {
-          throw Exception(responseData['message'] ?? 'Unknown error occurred');
+          throw Exception(result['message']);
         }
       } else {
-        throw Exception('Failed to fetch task. Status code: ${response.statusCode}');
+        throw Exception('Failed to fetch tasks. Status Code: ${response.statusCode}');
       }
     } catch (e) {
-      // Handle errors
-      print('Error feching task: $e');
+      debugPrint('Error fetching tasks: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error feching task: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
-    } finally {
-      // Optional: Add cleanup code if necessary
-      print('Add fetch attempt completed.');
     }
   }
 
   Future<void> removeTask(int index) async {
-    final response = await http.post(
-      Uri.parse(getApiUrl(toDoTaskEndpoint)),
-      headers: {
-        'Content-Type': 'application/json',
-        'Session-ID': widget.sessionId,
-      },
-      body: json.encode({
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details.');
+      }
+
+      final taskId = tasks[index]['id'];
+      if (taskId == null) {
+        throw Exception('Task ID is missing. Cannot delete task.');
+      }
+
+      final Map<String, dynamic> payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
         'action': 'delete',
         'id': tasks[index]['id'].toString(),
-      }),
-    );
+      };
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      if (data['status'] == 'success') {
-        setState(() {
-          tasks.removeAt(index);
-        });
+      debugPrint('Deleting task with payload: $payload');
+
+      final response = await http.post(
+        Uri.parse(getApiUrl(toDoTaskEndpoint)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Session-ID': widget.sessionId,
+        },
+        body: jsonEncode(payload),
+      );
+
+      debugPrint('Response Code: ${response.statusCode}');
+      debugPrint('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['status'] == 'success') {
+          setState(() {
+            tasks.removeAt(index);
+          });
+        } else {
+          throw Exception(result['message']);
+        }
+      } else {
+        throw Exception('Failed to delete task. Status Code: ${response.statusCode}');
       }
-    } else {
-      throw Exception('Failed to delete task');
+    } catch (e) {
+      debugPrint('Error deleting task: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
-
 
 
   @override

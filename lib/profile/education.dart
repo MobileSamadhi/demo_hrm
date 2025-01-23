@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:hrm_system/constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../views/dashboard.dart';
 
@@ -54,6 +55,49 @@ class _EducationInfoPageState extends State<EducationInfoPage> {
     _fetchEducationData();
   }
 
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
+
   Future<void> _fetchEducationData() async {
     final String apiUrl = getApiUrl(educationEndpoint);
 
@@ -63,32 +107,64 @@ class _EducationInfoPageState extends State<EducationInfoPage> {
     });
 
     try {
+      // Fetch company code from SharedPreferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details using the company code
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Prepare the payload for the request
+      final Map<String, dynamic> payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'session_id': widget.sessionId, // Include session ID if required
+      };
+
+      print('Fetching education data with payload: $payload'); // Debug log
+
+      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId,
+          'Session-ID': widget.sessionId, // Include Session-ID if needed
         },
+        body: jsonEncode(payload),
       );
 
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
         if (data['status'] == 'success') {
           final List<dynamic> educationData = data['data'];
           setState(() {
-            _educationList =
-                educationData.map((edu) => Education.fromJson(edu)).toList();
+            _educationList = educationData.map((edu) => Education.fromJson(edu)).toList();
             _isLoading = false;
           });
         } else {
           setState(() {
-            _errorMessage = data['message'];
+            _errorMessage = data['message'] ?? 'Unknown error occurred.';
             _isLoading = false;
           });
         }
       } else {
         setState(() {
-          _errorMessage = 'Failed to fetch education data.';
+          _errorMessage = 'Failed to fetch education data. HTTP Status: ${response.statusCode}';
           _isLoading = false;
         });
       }
@@ -220,6 +296,7 @@ class _EditEducationPageState extends State<EditEducationPage> {
   late TextEditingController _resultController;
   late TextEditingController _yearController;
   bool _isSaving = false;
+  String _errorMessage = ''; // To store error messages for UI feedback
 
   @override
   void initState() {
@@ -230,50 +307,136 @@ class _EditEducationPageState extends State<EditEducationPage> {
     _yearController = TextEditingController(text: widget.education.year);
   }
 
+
+  Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
+    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'company_code': companyCode}),
+      );
+
+      // Log the response code and body for debugging
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Check if the response contains valid data
+        if (data.isNotEmpty && data[0]['status'] == 1) {
+          final dbDetails = data[0];
+          return {
+            'database_host': dbDetails['database_host'],
+            'database_name': dbDetails['database_name'],
+            'database_username': dbDetails['database_username'],
+            'database_password': dbDetails['database_password'],
+          };
+        } else {
+          print('Invalid response: ${data}');
+          return null;
+        }
+      } else {
+        // Handle non-200 status codes
+        print('Error fetching database details. Status code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching database details: $e');
+      return null;
+    }
+  }
+
   Future<void> _updateEducation() async {
     final String apiUrl = getApiUrl(updateEducationEndpoint);
 
     setState(() {
       _isSaving = true;
+      _errorMessage = '';
     });
 
     try {
+      // Fetch company code from SharedPreferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      // Fetch database details using the company code
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details. Please log in again.');
+      }
+
+      // Prepare the payload for the request
+      final Map<String, dynamic> payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'session_id': widget.sessionId,
+        'id': widget.education.id,
+        'edu_type': _typeController.text,
+        'institute': _instituteController.text,
+        'result': _resultController.text,
+        'year': _yearController.text,
+      };
+
+      print('Updating education data with payload: $payload'); // Debug log
+
+      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
           'Session-ID': widget.sessionId,
         },
-        body: json.encode({
-          'id': widget.education.id,
-          'edu_type': _typeController.text,
-          'institute': _instituteController.text,
-          'result': _resultController.text,
-          'year': _yearController.text,
-        }),
+        body: jsonEncode(payload),
       );
 
+      // Log the response
+      print('Response Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        final Map<String, dynamic> data = json.decode(response.body);
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
         if (data['status'] == 'success') {
-          Navigator.pop(context, true);
+          Navigator.pop(context, true); // Close the screen and indicate success
         } else {
-          _showError(data['message']);
+          setState(() {
+            _errorMessage = data['message'] ?? 'Unknown error occurred.';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(_errorMessage)),
+          );
         }
       } else {
-        _showError('Failed to update education.');
+        setState(() {
+          _errorMessage = 'Failed to update education. HTTP Status: ${response.statusCode}';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_errorMessage)),
+        );
       }
     } catch (e) {
-      _showError('An error occurred: $e');
+      setState(() {
+        _errorMessage = 'An error occurred: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage)),
+      );
     } finally {
       setState(() {
-        _isSaving = false;
+        _isSaving = false; // Stop the saving indicator
       });
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
