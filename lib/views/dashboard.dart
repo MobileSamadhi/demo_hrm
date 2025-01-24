@@ -432,52 +432,6 @@ class _DashboardPageState extends State<DashboardPage> {
                     }
                   },
                 ),
-                if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN' || role?.toUpperCase() == 'MANAGER')
-                _buildDrawerItem(
-                  text: 'Review Leave Request',
-                  onTap: () async {
-                    // Fetch emId and userRole from SharedPreferences before navigating
-                    final prefs = await SharedPreferences.getInstance();
-                    final String? managerEmId = prefs.getString('em_id'); // emId for manager
-                    final String? userRole = prefs.getString('role'); // Fetch user role
-
-                    if (userRole != null && userRole.isNotEmpty) {
-                      if (userRole == 'admin' || userRole == 'super_admin') {
-                        // Navigate for admin/super_admin without requiring emId
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LeaveReviewPage(
-                              emId: '', // Admins and Super Admins don't need emId
-                              role: userRole, // Pass the role
-                            ),
-                          ),
-                        );
-                      } else if (managerEmId != null && managerEmId.isNotEmpty) {
-                        // Navigate for manager with emId and role
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LeaveReviewPage(
-                              emId: managerEmId, // Pass manager's emId
-                              role: userRole, // Pass the role
-                            ),
-                          ),
-                        );
-                      } else {
-                        // Handle missing manager emId
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Manager ID not found')),
-                        );
-                      }
-                    } else {
-                      // Handle missing role
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('User role not found')),
-                      );
-                    }
-                  },
-                ),
                 // Leave Type, Earned Leave, and Report - visible only to 'admin' or 'super admin'
                 if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
                   _buildDrawerItem(

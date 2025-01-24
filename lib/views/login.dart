@@ -281,6 +281,15 @@ class _LoginPageState extends State<LoginPage> {
             SharedPreferences prefs = await SharedPreferences.getInstance();
             await prefs.setString('database_host', dbDetails['Location']); // Adjust if needed
             await prefs.setString('database_name', dbDetails['CompanyName']); // Adjust if needed
+
+            // Show a success SnackBar
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Company code successfully verified!'),
+                backgroundColor: Colors.teal,
+              ),
+            );
+
             return true;
           }
         } else {
@@ -346,6 +355,14 @@ class _LoginPageState extends State<LoginPage> {
           await prefs.setString('em_code', data['em_code']);
 
           print("Login successful: Session ID: ${data['session_id']}");
+
+          // Show a success SnackBar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login successful!'),
+              backgroundColor: Colors.teal,
+            ),
+          );
           return true;
         } else {
           print("Login failed: ${data['error']}");
@@ -365,6 +382,7 @@ class _LoginPageState extends State<LoginPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('em_id') ?? '';
   }
+
 
   Widget _buildTextField({
     required TextEditingController controller,
