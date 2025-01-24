@@ -432,6 +432,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     }
                   },
                 ),
+                if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN' || role?.toUpperCase() == 'MANAGER')
                 _buildDrawerItem(
                   text: 'Review Leave Request',
                   onTap: () async {
