@@ -411,21 +411,72 @@ class _DashboardPageState extends State<DashboardPage> {
                   onTap: () async {
                     final prefs = await SharedPreferences.getInstance();
                     final employeeId = prefs.getString('em_id');
+                    final userRole = prefs.getString('role'); // Fetch role
 
-                    if (employeeId != null) {
+                    if (employeeId != null && userRole != null) {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => LeaveApplicationPage(emId: employeeId),
+                          builder: (context) => LeaveApplicationPage(
+                            emId: employeeId,
+                            role: userRole, // Pass role to LeaveApplicationPage
+                          ),
                         ),
                       );
                     } else {
-                      print("Employee ID not found");
-                      // Optionally show an error or prompt the user to log in again
+                      print("Employee ID or role not found");
+                      // Show an error message to the user
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please log in again to access this feature')),
+                      );
                     }
                   },
                 ),
+                _buildDrawerItem(
+                  text: 'Review Leave Request',
+                  onTap: () async {
+                    // Fetch emId and userRole from SharedPreferences before navigating
+                    final prefs = await SharedPreferences.getInstance();
+                    final String? managerEmId = prefs.getString('em_id'); // emId for manager
+                    final String? userRole = prefs.getString('role'); // Fetch user role
 
+                    if (userRole != null && userRole.isNotEmpty) {
+                      if (userRole == 'admin' || userRole == 'super_admin') {
+                        // Navigate for admin/super_admin without requiring emId
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => LeaveReviewPage(
+                              emId: '', // Admins and Super Admins don't need emId
+                              role: userRole, // Pass the role
+                            ),
+                          ),
+                        );
+                      } else if (managerEmId != null && managerEmId.isNotEmpty) {
+                        // Navigate for manager with emId and role
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => LeaveReviewPage(
+                              emId: managerEmId, // Pass manager's emId
+                              role: userRole, // Pass the role
+                            ),
+                          ),
+                        );
+                      } else {
+                        // Handle missing manager emId
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Manager ID not found')),
+                        );
+                      }
+                    } else {
+                      // Handle missing role
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('User role not found')),
+                      );
+                    }
+                  },
+                ),
                 // Leave Type, Earned Leave, and Report - visible only to 'admin' or 'super admin'
                 if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
                   _buildDrawerItem(

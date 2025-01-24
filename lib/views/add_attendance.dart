@@ -28,7 +28,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   final TextEditingController _signoutTimeController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
   final TextEditingController _workingHoursController = TextEditingController();
-  String? _employeeRole; // Changed to nullable String
+  late String _employeeRole = widget.role;
 
 
   String? _selectedPlace;
@@ -38,7 +38,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   void initState() {
     super.initState();
     _workingHoursController.text = '0 hours'; // Initialize working hours
-    _employeeRole =  'Select Here..'; // Default role
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -181,22 +180,39 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
       }
 
       final url = getApiUrl(addAttendanceEndpoint);
+
+      debugPrint('Submitting attendance with the following details:');
+      debugPrint('Database Host: ${dbDetails['database_host']}');
+      debugPrint('Database Name: ${dbDetails['database_name']}');
+      debugPrint('Database Username: ${dbDetails['database_username']}');
+      debugPrint('Database Password: ${dbDetails['database_password']}');
+      debugPrint('Company Code: $companyCode');
+      debugPrint('Employee ID: $_employeeId');
+      debugPrint('Attendance Date: ${_dateController.text}');
+      debugPrint('Sign-in Time: ${_signinTimeController.text}');
+      debugPrint('Sign-out Time: ${_signoutTimeController.text}');
+      debugPrint('Working Hours: ${_workingHoursController.text}');
+      debugPrint('Place: $_selectedPlace');
+      debugPrint('Reason: ${_reasonController.text.isEmpty ? 'No reason provided' : _reasonController.text}');
+      debugPrint('Role: $_employeeRole');
+
+      // Handle null or empty values explicitly
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'database_host': dbDetails['database_host'],
-          'database_name': dbDetails['database_name'],
-          'database_username': dbDetails['database_username'],
-          'database_password': dbDetails['database_password'],
+          'database_host': dbDetails['database_host'] ?? '', // Default to empty string
+          'database_name': dbDetails['database_name'] ?? '',
+          'database_username': dbDetails['database_username'] ?? '',
+          'database_password': dbDetails['database_password'] ?? '',
           'company_code': companyCode,
           'emp_id': _employeeId,
-          'atten_date': _dateController.text,
-          'signin_time': _signinTimeController.text,
-          'signout_time': _signoutTimeController.text,
-          'working_hour': _workingHoursController.text,
-          'place': _selectedPlace,
-          'reason': _reasonController.text,
+          'atten_date': _dateController.text.isNotEmpty ? _dateController.text : 'Unknown Date',
+          'signin_time': _signinTimeController.text.isNotEmpty ? _signinTimeController.text : 'Unknown Sign-in',
+          'signout_time': _signoutTimeController.text.isNotEmpty ? _signoutTimeController.text : 'Unknown Sign-out',
+          'working_hour': _workingHoursController.text.isNotEmpty ? _workingHoursController.text : '0 hours 0 minutes',
+          'place': _selectedPlace ?? 'Unknown Place',
+          'reason': _reasonController.text.isEmpty ? 'No reason provided' : _reasonController.text,
           'role': _employeeRole,
         }),
       );
@@ -206,11 +222,12 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message']),
-          backgroundColor: result['success'] ? Colors.green : Colors.green,
+          backgroundColor: result['success'] ? Colors.green : Colors.red,
         ),
       );
     }
   }
+
 
 
   @override
@@ -282,31 +299,14 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                 validator: (value) => value == null || value.isEmpty ? 'Please select a date' : null,
               ),
               SizedBox(height: 16),
-              DropdownButtonFormField<String?>(
-                value: _employeeRole, // Holds the selected role or null
-                items: ['Select Here..','Employee', 'Manager', 'Admin', 'Super Admin']
-                    .map((role) => DropdownMenuItem(
-                  value: role,
-                  child: Text(role),
-                ))
-                    .toList(),
+              TextFormField(
+                initialValue: _employeeRole,
+                readOnly: true,
                 decoration: InputDecoration(
-                  labelText: 'Role',
-                  prefixIcon: Icon(Icons.person, color: Color(0xFF0D9494)),
+                  labelText: 'Employee Role',
+                  prefixIcon: Icon(Icons.badge, color: Color(0xFF0D9494)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
                 ),
-                onChanged: (value) {
-                  setState(() {
-                    _employeeRole = value; // Update the selected role
-                    print('Selected role: $_employeeRole'); // Debug log
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value == 'Select Here..') {
-                    return 'Please select a user role';
-                  }
-                  return null;
-                },
               ),
 
               SizedBox(height: 20),

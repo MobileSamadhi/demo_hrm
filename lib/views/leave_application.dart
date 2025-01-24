@@ -8,8 +8,9 @@ import 'dashboard.dart';
 
 class LeaveApplicationPage extends StatefulWidget {
   final String emId; // Accept em_id as a parameter
+  final String role;
 
-  LeaveApplicationPage({required this.emId});
+  LeaveApplicationPage({required this.emId, required this.role});
 
   @override
   _LeaveApplicationPageState createState() => _LeaveApplicationPageState();
@@ -26,7 +27,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
   String _leaveDuration = '';
   String _applyDate = DateTime.now().toLocal().toString().split(' ')[0]; // Today's date
   String _reason = '';
-  String _role = 'Select Here..'; // Default role
+  late String _role = widget.role;
 
   /// Fetch database details for a given company code
   Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
@@ -237,20 +238,14 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
               _buildFormCard(
                 title: 'User Role',
-                child: _buildDropdownButtonFormField(
-                  labelText: 'Role',
+                child: _buildTextFormField(
+                  labelText: 'Employee Role',
                   icon: Icons.person,
-                  value: _role,
-                  items: [
-                    'Select Here..',
-                    'EMPLOYEE',
-                    'MANAGER',
-                    'ADMIN',
-                    'SUPERADMIN',
-                  ],
-                  onChanged: (newValue) => setState(() => _role = newValue!),
+                  initialValue: _role,
+                  readOnly: true,
                 ),
               ),
+
               SizedBox(height: 20),
 
               // Leave Type Dropdown
