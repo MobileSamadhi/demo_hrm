@@ -21,8 +21,6 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController epfNumberController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-
-  // Regular expression for exactly six digits
   final RegExp _companyCodeRegex = RegExp(r'^\d{6}$');
 
   @override
@@ -38,8 +36,8 @@ class _LoginPageState extends State<LoginPage> {
       epfNumberController.text = prefs.getString('epf_number') ?? '';
       passwordController.text = prefs.getString('password') ?? '';
       rememberMe = true;
-      setState(() {}); // Update the UI to reflect loaded data
     }
+    setState(() {}); // Update the UI with loaded data
   }
 
   Future<void> _saveCredentials() async {
@@ -93,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
                       text: 'Verify Company Code',
                       onPressed: () async {
                         String enteredCode = companyCodeController.text.trim();
-                        if (_companyCodeRegex.hasMatch(enteredCode)) { // Validate format
+                        if (_companyCodeRegex.hasMatch(enteredCode)) {
                           bool isValidCode = await _verifyCompanyCode(enteredCode);
                           if (isValidCode) {
                             setState(() {
@@ -159,16 +157,25 @@ class _LoginPageState extends State<LoginPage> {
                     _buildButton(
                       text: 'Login',
                       onPressed: () async {
-                        if (epfNumberController.text.isNotEmpty &&
-                            passwordController.text.isNotEmpty &&
-                            companyCodeController.text.isNotEmpty) {
+                        String companyCode = companyCodeController.text.trim();
+                        String epfNumber = epfNumberController.text.trim();
+                        String password = passwordController.text.trim();
+
+                        // Debug print to ensure company code passes correctly
+                        print('Company Code: $companyCode');
+                        print('EPF Number: $epfNumber');
+                        print('Password: $password');
+                        print('Remember Me: $rememberMe');
+
+                        if (companyCode.isNotEmpty && epfNumber.isNotEmpty && password.isNotEmpty) {
                           bool isLoggedIn = await login(
-                            epfNumber: epfNumberController.text,
-                            password: passwordController.text,
-                            companyCode: companyCodeController.text,
+                            epfNumber: epfNumber,
+                            password: password,
+                            companyCode: companyCode,
                           );
                           if (isLoggedIn) {
-                            await _saveCredentials();
+                            if (rememberMe) await _saveCredentials();
+
                             String managerEmId = await _getManagerEmId();
                             if (managerEmId.isNotEmpty) {
                               Navigator.pushReplacement(
@@ -188,7 +195,6 @@ class _LoginPageState extends State<LoginPage> {
                         }
                       },
                     ),
-
                   ],
                   SizedBox(height: 15),
                 ],
@@ -202,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
     final url = getApiUrl(authEndpoint); // Replace with your Auth.php endpoint URL
-    print('Fetching database details from: $url');
+    print('Fetching database details for Company Code: $companyCode');
 
     try {
       final response = await http.post(
@@ -215,29 +221,23 @@ class _LoginPageState extends State<LoginPage> {
       print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body); // Change this to List<dynamic>
+        final List<dynamic> data = jsonDecode(response.body);
 
         if (data.isNotEmpty && data[0]['status'] == 1) {
-          final dbDetails = data[0]; // Access the first item in the list
+          final dbDetails = data[0];
           return {
             'database_host': dbDetails['database_host'],
             'database_name': dbDetails['database_name'],
             'database_username': dbDetails['database_username'],
             'database_password': dbDetails['database_password'],
           };
-        } else {
-          print('Error: ${data[0]['status']}');
         }
-      } else {
-        print('Failed to fetch database details. Status Code: ${response.statusCode}');
       }
     } catch (e) {
       print('Error fetching database details: $e');
     }
-    return null; // Return null if something goes wrong
+    return null;
   }
-
-
 
   Future<bool> _verifyCompanyCode(String companyCode) async {
     try {
@@ -314,17 +314,14 @@ class _LoginPageState extends State<LoginPage> {
     required String companyCode,
   }) async {
     try {
-      // Step 1: Fetch database details using company code
       final dbDetails = await fetchDatabaseDetails(companyCode);
 
       if (dbDetails == null) {
-        print('Database details could not be fetched.');
+        _showSnackbar(context, 'Database details not found. Please verify the company code.');
         return false;
       }
 
-      // Step 2: Make the login request
-      final url = getApiUrl(loginEndpoint); // Replace with your login endpoint URL
-      print('Sending login request to: $url');
+      final url = getApiUrl(loginEndpoint);
 
       final response = await http.post(
         Uri.parse(url),
@@ -340,49 +337,31 @@ class _LoginPageState extends State<LoginPage> {
         }),
       );
 
-      print('Response Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
 
         if (data['status'] == 'success') {
-          // Store session details in shared preferences
           SharedPreferences prefs = await SharedPreferences.getInstance();
+
+          // Save session details to preferences
           await prefs.setString('session_id', data['session_id']);
           await prefs.setString('role', data['role']);
           await prefs.setString('em_id', data['em_id']);
-          await prefs.setString('em_code', data['em_code']);
+          await prefs.setString('company_code', companyCode); // Always save the company code
 
-          print("Login successful: Session ID: ${data['session_id']}");
-
-          // Show a success SnackBar
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Login successful!'),
-              backgroundColor: Colors.teal,
-            ),
-          );
           return true;
-        } else {
-          print("Login failed: ${data['error']}");
         }
-      } else {
-        final errorData = jsonDecode(response.body);
-        print("Server error: ${errorData['error']}");
       }
     } catch (error) {
-      print('Error logging in: $error');
+      _showSnackbar(context, 'Error: $error');
     }
     return false;
   }
-
 
   Future<String> _getManagerEmId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString('em_id') ?? '';
   }
-
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -398,31 +377,12 @@ class _LoginPageState extends State<LoginPage> {
       decoration: InputDecoration(
         labelText: labelText,
         hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey.withOpacity(0.6)),
         prefixIcon: Icon(prefixIcon, color: Color(0xFF0D9494)),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.white70,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide(
-            color: Color(0xFF0D9494),
-            width: 2.0,
-          ),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide(
-            color: Color(0xFF0D9494),
-            width: 2.0,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30.0),
-          borderSide: BorderSide(
-            color: Color(0xFF0D9494),
-            width: 2.0,
-          ),
         ),
       ),
       keyboardType: keyboardType,
@@ -431,54 +391,32 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildButton({required String text, required VoidCallback onPressed}) {
-    if (Platform.isIOS) {
-      return CupertinoButton.filled(
-        onPressed: onPressed,
-        child: Text(text),
-      );
-    } else {
-      return ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.symmetric(vertical: 14.0),
-          backgroundColor: Color(0xFF0D9494),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30.0),
-            side: BorderSide(color: Color(0xFF0D9494), width: 2),
-          ),
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(vertical: 14.0),
+        backgroundColor: Color(0xFF0D9494),
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30.0),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 18.0,
-            color: Colors.white,
-          ),
-        ),
-      );
-    }
+      ),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 18.0),
+      ),
+    );
   }
 
   Widget _buildCheckbox() {
-    if (Platform.isIOS) {
-      return CupertinoSwitch(
-        value: rememberMe,
-        onChanged: (bool value) {
-          setState(() {
-            rememberMe = value;
-          });
-        },
-      );
-    } else {
-      return Checkbox(
-        value: rememberMe,
-        onChanged: (bool? value) {
-          setState(() {
-            rememberMe = value ?? false;
-          });
-        },
-      );
-    }
+    return Checkbox(
+      value: rememberMe,
+      onChanged: (bool? value) {
+        setState(() {
+          rememberMe = value ?? false;
+        });
+      },
+    );
   }
 
   void _showSnackbar(BuildContext context, String message) {

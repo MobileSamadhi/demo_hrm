@@ -59,12 +59,22 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   String? role;
   String? emId;
+  late String companyCode;
 
   @override
   void initState() {
     super.initState();
     _getUserRole(); // Fetch the user's role
+    _initializeDashboard();
   }
+
+
+Future<void> _initializeDashboard() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  // Retrieve company code from SharedPreferences
+  companyCode = prefs.getString('company_code') ?? '';
+}
 
   Future<void> _getUserRole() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
