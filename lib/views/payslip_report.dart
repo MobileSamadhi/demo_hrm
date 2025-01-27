@@ -77,7 +77,6 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
   }
 
   Future<List<Map<String, dynamic>>> fetchPaySalaries() async {
-    // Fetch the company code from SharedPreferences
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? companyCode = prefs.getString('company_code');
 
@@ -85,16 +84,12 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
       throw Exception('Company code is missing. Please log in again.');
     }
 
-    // Fetch database details using the company code
     final dbDetails = await fetchDatabaseDetails(companyCode);
     if (dbDetails == null) {
       throw Exception('Failed to fetch database details. Please log in again.');
     }
 
-    // Construct the API URL
     final String apiUrl = getApiUrl(paySalaryEndpoint);
-
-    // Prepare the payload for the POST request
     final Map<String, dynamic> payload = {
       'em_id': widget.emId,
       'role': widget.role,
@@ -105,52 +100,50 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
       'company_code': companyCode,
     };
 
-    print('Fetching pay salaries with payload: $payload'); // Debug log
-
     try {
-      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );
 
-      print('Response Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
-        try {
-          // Decode the JSON response
-          final List<dynamic> data = jsonDecode(response.body);
-          return data.map((item) {
-            final parsedItem = item as Map<String, dynamic>;
-            return {
-              ...parsedItem,
-              'is_permanent': parsedItem['is_permanent'] == 1,
-            };
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Apply filtering logic if searchQuery is not empty
+        final List<Map<String, dynamic>> filteredData = data.map((item) {
+          final parsedItem = item as Map<String, dynamic>;
+          return {
+            ...parsedItem,
+            'is_permanent': parsedItem['is_permanent'] == 1,
+          };
+        }).toList();
+
+        if (searchQuery.isNotEmpty) {
+          final lowerQuery = searchQuery.toLowerCase();
+          return filteredData.where((item) {
+            final month = item['month']?.toString().toLowerCase() ?? '';
+            final year = item['year']?.toString().toLowerCase() ?? '';
+            return month.contains(lowerQuery) || year.contains(lowerQuery);
           }).toList();
-        } catch (e) {
-          print('Failed to decode JSON: $e');
-          throw Exception('Failed to decode JSON: $e');
         }
+
+        return filteredData;
       } else {
-        print('Failed to load pay salaries. HTTP Status: ${response.statusCode}');
         throw Exception('Failed to load pay salaries: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching pay salaries: $e');
-      throw Exception('An error occurred while fetching pay salaries.');
+      throw Exception('An error occurred while fetching pay salaries: $e');
     }
   }
 
-
-
   void _onSearchChanged(String value) {
     setState(() {
-      searchQuery = value;
-      _paySalaries = fetchPaySalaries();
+      searchQuery = value.trim(); // Update the search query
+      _paySalaries = fetchPaySalaries(); // Re-fetch data with the updated query
     });
   }
+
 
 
   @override
@@ -209,8 +202,8 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
           child: TextField(
             onChanged: _onSearchChanged,
             decoration: InputDecoration(
-              labelText: 'Search by Year or Month',
-              hintText: 'Enter Year or Month (e.g., "2023" or "March")',
+              labelText: 'Search by Month',
+              hintText: 'Enter Month',
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),

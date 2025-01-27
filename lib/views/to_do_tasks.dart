@@ -60,8 +60,15 @@ class _ToDoListSectionState extends State<ToDoListSection> {
     }
   }
 
+  bool isAddingTask = false; // Add this at the top of your State class
+
   Future<void> addTask() async {
+    if (isAddingTask) return; // Prevent multiple clicks
     if (taskController.text.isNotEmpty) {
+      setState(() {
+        isAddingTask = true; // Disable button
+      });
+
       try {
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         final String? companyCode = prefs.getString('company_code');
@@ -110,12 +117,11 @@ class _ToDoListSectionState extends State<ToDoListSection> {
               taskController.clear();
             });
 
-            // Show success Snackbar
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text('Task added successfully!'),
-                backgroundColor: Colors.green, // Optional: Green background for success
-                duration: Duration(seconds: 2), // Duration of the Snackbar
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
               ),
             );
           } else {
@@ -129,12 +135,17 @@ class _ToDoListSectionState extends State<ToDoListSection> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red, // Optional: Red background for errors
+            backgroundColor: Colors.red,
           ),
         );
+      } finally {
+        setState(() {
+          isAddingTask = false; // Re-enable button
+        });
       }
     }
   }
+
 
 
   Future<void> fetchTasks() async {
@@ -468,12 +479,14 @@ class _ToDoListSectionState extends State<ToDoListSection> {
       return CupertinoButton.filled(
         padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         borderRadius: BorderRadius.circular(12),
-        child: Text(text),
-        onPressed: onPressed,
+        child: isAddingTask
+            ? CupertinoActivityIndicator()
+            : Text(text),
+        onPressed: isAddingTask ? null : onPressed,
       );
     } else {
       return ElevatedButton(
-        onPressed: onPressed,
+        onPressed: isAddingTask ? null : onPressed,
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           backgroundColor: Color(0xFF0D9494),
@@ -482,13 +495,23 @@ class _ToDoListSectionState extends State<ToDoListSection> {
           ),
           shadowColor: Colors.blue.withOpacity(0.3),
         ),
-        child: Text(
+        child: isAddingTask
+            ? SizedBox(
+          height: 16,
+          width: 16,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : Text(
           text,
           style: TextStyle(fontSize: 16, color: Colors.white),
         ),
       );
     }
   }
+
 
   Widget _buildTaskList() {
     return ListView.builder(
