@@ -7,7 +7,7 @@ import '../constants.dart';
 import 'dashboard.dart';
 
 class LeaveApplicationPage extends StatefulWidget {
-  final String emId; // Accept em_id as a parameter
+  final String emId;
   final String role;
 
   LeaveApplicationPage({required this.emId, required this.role});
@@ -58,8 +58,10 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
     // Call the leave types API
     try {
+      final String url = getApiUrl('leaveTypeEndpoint');
+
       final response = await http.post(
-        Uri.parse('https://macksonsmobi.synnexcloudpos.com/leave_type.php'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'database_host': dbDetails['database_host'],
@@ -69,6 +71,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           'company_code': companyCode,
         }),
       );
+
 
       print('Response status code: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -437,7 +440,6 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
 
 // Helper method to build TextFormField
-  // Helper method to build TextFormField
   Widget _buildTextFormField({
     required String labelText,
     required IconData icon,
