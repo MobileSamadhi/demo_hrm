@@ -21,13 +21,83 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
   // Fields for the form
   late String _employeeId = widget.emId;
-  String _leaveType = 'Select Here..';
+  String? _selectedLeaveType;
+  int? _selectedTypeId;
   DateTime _startDate = DateTime.now();
   DateTime _endDate = DateTime.now();
   String _leaveDuration = '';
   String _applyDate = DateTime.now().toLocal().toString().split(' ')[0]; // Today's date
   String _reason = '';
   late String _role = widget.role;
+
+  // List of leave types
+  List<Map<String, dynamic>> _leaveTypes = [];
+  bool _isLoadingLeaveTypes = false;
+
+  // Fetch leave types from API
+  Future<void> _fetchLeaveTypes() async {
+    setState(() => _isLoadingLeaveTypes = true);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
+
+    if (companyCode == null || companyCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Company code is missing. Please log in again.')),
+      );
+      return;
+    }
+
+    // Fetch database details first
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to fetch database details.')),
+      );
+      return;
+    }
+
+    // Call the leave types API
+    try {
+      final response = await http.post(
+        Uri.parse('https://macksonsmobi.synnexcloudpos.com/leave_type.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'database_host': dbDetails['database_host'],
+          'database_name': dbDetails['database_name'],
+          'database_username': dbDetails['database_username'],
+          'database_password': dbDetails['database_password'],
+          'company_code': companyCode,
+        }),
+      );
+
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print('Parsed leave types: $data');
+        setState(() {
+          _leaveTypes = data
+              .where((item) => item['type_id'] != null && item['name'] != null)
+              .map((item) => {
+            'id': item['type_id'], // Map type_id to id
+            'type_name': item['name'], // Map name to type_name
+          })
+              .toList();
+        });
+        print('Mapped leave types: $_leaveTypes');
+      } else {
+        throw Exception('Failed to fetch leave types. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching leave types: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching leave types: $e')),
+      );
+    } finally {
+      setState(() => _isLoadingLeaveTypes = false);
+    }
+  }
 
   /// Fetch database details for a given company code
   Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
@@ -71,6 +141,18 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save(); // Save the form values into state variables
 
+      print('Submitting form...');
+      print('Selected Leave Type: $_selectedLeaveType');
+      print('Selected Type ID: $_selectedTypeId');
+      print('Reason: $_reason');
+
+      if (_selectedTypeId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select a leave type.')),
+        );
+        return;
+      }
+
       try {
         // Fetch company code from shared preferences
         final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -97,11 +179,11 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           'database_password': dbDetails['database_password'],
           'company_code': companyCode,
           'em_id': _employeeId,
-          'typeid': 1, // Replace with actual type ID if needed
-          'leave_type': _leaveType,
+          'typeid': _selectedTypeId,
+          'leave_type': _selectedLeaveType,
           'start_date': _startDate.toLocal().toString().split(' ')[0],
           'end_date': _endDate.toLocal().toString().split(' ')[0],
-          'leave_duration': _leaveDuration,
+          'leave_duration': _calculateLeaveDuration(), // Calculate duration
           'apply_date': _applyDate,
           'reason': _reason,
           'role': _role,
@@ -116,7 +198,6 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           body: jsonEncode(payload),
         );
 
-        // Handle the server response
         print('Response Code: ${response.statusCode}');
         print('Response Body: ${response.body}');
 
@@ -126,21 +207,33 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           final String message = result['message'] ?? 'Unknown error';
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$status: $message'),
-              backgroundColor: Colors.green,),
+            SnackBar(
+              content: Text('$status: $message'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else {
           throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
         }
       } catch (e) {
-        // Handle any exceptions during the process
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'),
-            backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
+    } else {
+      print('Form validation failed.'); // Debug log
     }
   }
+
+  String _calculateLeaveDuration() {
+    int difference = _endDate.difference(_startDate).inDays + 1;
+    return difference.toString(); // Convert to string
+  }
+
+
   // Show a snackbar with a message
   void _showSnackbar(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -178,6 +271,13 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
       });
     }
   }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeaveTypes();
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -249,24 +349,33 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
               SizedBox(height: 20),
 
               // Leave Type Dropdown
-              _buildFormCard(
-                title: 'Leave Details',
-                child: _buildDropdownButtonFormField(
-                  labelText: 'Leave Type',
-                  icon: Icons.category,
-                  value: _leaveType,
-                  items: [
-                    'Select Here..',
-                    'Leave Without Pay',
-                    'Public Holiday',
-                    'Paternal Leave',
-                    'Maternity Leave',
-                    'Sick Leave',
-                    'Casual Leave',
-                  ],
-                  onChanged: (newValue) => setState(() => _leaveType = newValue!),
-                ),
+          _buildFormCard(
+            title: 'Leave Details',
+            child:
+               _buildDropdownButtonFormField(
+                labelText: 'Leave Type',
+                icon: Icons.category,
+                value: _selectedLeaveType,
+                items: [
+                  ..._leaveTypes.map((item) => DropdownMenuItem<String>(
+                    value: item['type_name'],
+                    child: Text(item['type_name']!),
+                  )),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _selectedLeaveType = value;
+                    _selectedTypeId = value == 'Select Here..'
+                        ? null
+                        : _leaveTypes
+                        .firstWhere((item) => item['type_name'] == value)['id'];
+                  });
+                },
               ),
+          ),
+
+
+
               SizedBox(height: 20),
 
               // Date Pickers
@@ -361,8 +470,8 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
   Widget _buildDropdownButtonFormField({
     required String labelText,
     required IconData icon,
-    required String value,
-    required List<String> items,
+    required String? value,
+    required List<DropdownMenuItem<String>> items,
     required ValueChanged<String?>? onChanged,
   }) {
     return DropdownButtonFormField<String>(
@@ -372,21 +481,13 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(),
       ),
-      items: items.map((String item) {
-        return DropdownMenuItem<String>(
-          value: item,
-          child: Text(item),
-        );
-      }).toList(),
+      items: items,
       onChanged: onChanged,
-      validator: (value) {
-        if (value == null || value == 'Select Here..') {
-          return 'Please select a value from the list.';
-        }
-        return null;
-      },
+      validator: (value) =>
+      value == null || value.isEmpty ? 'Please select $labelText' : null,
     );
   }
+
 
   // Helper method to build a card for form sections
   Widget _buildFormCard({required String title, required Widget child}) {
