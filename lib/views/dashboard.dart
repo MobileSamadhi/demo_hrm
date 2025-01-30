@@ -699,6 +699,16 @@ Future<void> _initializeDashboard() async {
                     }
                   },
                 ),
+                _buildDrawerItem(
+                  icon: Icons.password,
+                  text: 'Change Password',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => ChangePasswordPage()),
+                    );
+                  },
+                ),
                 /* _buildDrawerItem(
                   icon: Icons.padding_rounded,
                   text: 'Documents',

@@ -58,7 +58,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
     // Call the leave types API
     try {
-      final String url = getApiUrl('leaveTypeEndpoint');
+      final url = getApiUrl(leaveTypeEndpoint);
 
       final response = await http.post(
         Uri.parse(url),
