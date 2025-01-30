@@ -186,13 +186,13 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           'leave_type': _selectedLeaveType,
           'start_date': _startDate.toLocal().toString().split(' ')[0],
           'end_date': _endDate.toLocal().toString().split(' ')[0],
-          'leave_duration': _calculateLeaveDuration(), // Calculate duration
+          'leave_duration': _calculateLeaveDuration(),
           'apply_date': _applyDate,
           'reason': _reason,
           'role': _role,
         };
 
-        print('Submitting leave application with payload: $payload'); // Debug log
+        print('Submitting leave application with payload: $payload');
 
         // Send the POST request to the server
         final response = await http.post(
@@ -215,6 +215,9 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
               backgroundColor: Colors.green,
             ),
           );
+
+          // Clear the form and reset fields after successful submission
+          _clearForm();
         } else {
           throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
         }
@@ -227,9 +230,24 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
         );
       }
     } else {
-      print('Form validation failed.'); // Debug log
+      print('Form validation failed.');
     }
   }
+
+  void _clearForm() {
+    setState(() {
+      _selectedLeaveType = null; // Reset dropdown
+      _selectedTypeId = null;
+      _selectedLeaveType = '';
+      _startDate = DateTime.now(); // Reset start date
+      _endDate = DateTime.now(); // Reset end date
+      _leaveDuration = ''; // Reset leave duration
+      _reason = ''; // Clear reason
+    });
+    _formKey.currentState!.reset(); // Reset form validation state
+  }
+
+
 
   String _calculateLeaveDuration() {
     int difference = _endDate.difference(_startDate).inDays + 1;

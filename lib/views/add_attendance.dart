@@ -225,6 +225,29 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
           backgroundColor: result['success'] ? Colors.green : Colors.red,
         ),
       );
+
+      if (result['success']) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message']), backgroundColor: Colors.green),
+        );
+
+        // Clear the form and reset fields
+        _formKey.currentState!.reset();
+        _dateController.clear();
+        _signinTimeController.clear();
+        _signoutTimeController.clear();
+        _workingHoursController.text = '0 hours'; // Reset to default value
+        _reasonController.clear();
+        setState(() {
+          _selectedPlace = null; // Reset the dropdown
+        });
+      } else {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
