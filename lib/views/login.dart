@@ -349,6 +349,14 @@ class _LoginPageState extends State<LoginPage> {
           await prefs.setString('em_id', data['em_id']);
           await prefs.setString('company_code', companyCode); // Always save the company code
 
+          // Show a success SnackBar
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login successfully!!!'),
+              backgroundColor: Colors.teal,
+            ),
+          );
+
           return true;
         }
       }
