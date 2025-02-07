@@ -380,122 +380,105 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
               final request = attendanceRequests![index];
               final attendanceId = request['id'] ?? request['attendance_id'];
 
-              return Dismissible(
-                key: Key(attendanceId.toString()),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  alignment: Alignment.centerRight,
+              return Card(
+                margin: EdgeInsets.symmetric(vertical: 8.0),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
+                elevation: 8,
+                shadowColor: Colors.grey.withOpacity(0.3),
+                child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.redAccent,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Icon(Icons.delete, color: Colors.white, size: 28),
-                ),
-                onDismissed: (direction) {
-                  setState(() {
-                    attendanceRequests!.removeAt(index);
-                  });
-                },
-                child: Card(
-                  margin: EdgeInsets.symmetric(vertical: 8.0),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
-                  elevation: 8,
-                  shadowColor: Colors.grey.withOpacity(0.3),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.white, Colors.grey.shade100],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(15.0),
+                    gradient: LinearGradient(
+                      colors: [Colors.white, Colors.grey.shade100],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    padding: EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Name and Checkbox
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${request['first_name']} ${request['last_name']}',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                              ),
+                    borderRadius: BorderRadius.circular(15.0),
+                  ),
+                  padding: EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Name and Checkbox
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${request['first_name']} ${request['last_name']}',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                             ),
-                            Transform.scale(
-                              scale: 1.2, // Smooth checkbox interaction
-                              child: Checkbox(
-                                value: selectedAttendanceIds.contains(attendanceId),
-                                activeColor: Colors.blue,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                                onChanged: (bool? value) {
-                                  setState(() {
-                                    if (value!) {
-                                      selectedAttendanceIds.add(attendanceId as int);
-                                    } else {
-                                      selectedAttendanceIds.remove(attendanceId);
-                                    }
-                                  });
-                                },
+                          ),
+                          Transform.scale(
+                            scale: 1.2, // Smooth checkbox interaction
+                            child: Checkbox(
+                              value: selectedAttendanceIds.contains(attendanceId),
+                              activeColor: Colors.blue,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  if (value!) {
+                                    selectedAttendanceIds.add(attendanceId as int);
+                                  } else {
+                                    selectedAttendanceIds.remove(attendanceId);
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      Divider(color: Colors.grey.shade300),
+
+                      _buildInfoRow(Icons.location_on, 'Place: ${request['place']}'),
+                      _buildInfoRow(Icons.date_range, 'Date: ${request['atten_date']}'),
+                      _buildInfoRow(Icons.access_time, 'Sign In: ${request['signin_time']} | Sign Out: ${request['signout_time']}'),
+                      _buildInfoRow(Icons.timelapse, 'Working Hours: ${request['working_hour']}'),
+
+                      SizedBox(height: 10),
+
+                      // Status with Border Design
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _getStatusColor(request['status']), width: 1.5),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.info_outline, size: 18, color: _getStatusColor(request['status'])),
+                            SizedBox(width: 6),
+                            Text(
+                              'Status: ${request['status']}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _getStatusColor(request['status']),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
+                      ),
 
-                        Divider(color: Colors.grey.shade300),
+                      SizedBox(height: 12),
 
-                        _buildInfoRow(Icons.location_on, 'Place: ${request['place']}'),
-                        _buildInfoRow(Icons.date_range, 'Date: ${request['atten_date']}'),
-                        _buildInfoRow(Icons.access_time, 'Sign In: ${request['signin_time']} | Sign Out: ${request['signout_time']}'),
-                        _buildInfoRow(Icons.timelapse, 'Working Hours: ${request['working_hour']}'),
-
-                        SizedBox(height: 10),
-
-                        // Status with Border Design
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: _getStatusColor(request['status']), width: 1.5),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.info_outline, size: 18, color: _getStatusColor(request['status'])),
-                              SizedBox(width: 6),
-                              Text(
-                                'Status: ${request['status']}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: _getStatusColor(request['status']),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                      // Action Buttons
+                      if (attendanceId != null)
+                        _buildActionButtons(attendanceId, index)
+                      else
+                        Text(
+                          'Invalid ID',
+                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                         ),
-
-                        SizedBox(height: 12),
-
-                        // Animated Action Buttons
-                        if (attendanceId != null)
-                          _buildActionButtons(attendanceId, index)
-                        else
-                          Text(
-                            'Invalid ID',
-                            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                          ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               );
             },
           ),
         ),
+
 
         // Bulk Action Buttons
         if (selectedAttendanceIds.isNotEmpty)

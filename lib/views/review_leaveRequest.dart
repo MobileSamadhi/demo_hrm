@@ -23,6 +23,10 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   bool isLoading = true;
   bool hasError = false;
 
+  List<int> selectedLeaveIds = []; // Stores selected leave IDs for bulk actions
+  bool selectAll = false; // Controls the "Select All" checkbox
+
+
   @override
   void initState() {
     super.initState();
@@ -204,6 +208,64 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     }
   }
 
+  Future<void> _updateBulkLeaveStatus(String status) async {
+    if (selectedLeaveIds.isEmpty) {
+      _showSnackbar('No leave requests selected.');
+      return;
+    }
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? companyCode = prefs.getString('company_code');
+
+      if (companyCode == null || companyCode.isEmpty) {
+        throw Exception('Company code is missing. Please log in again.');
+      }
+
+      final dbDetails = await fetchDatabaseDetails(companyCode);
+      if (dbDetails == null) {
+        throw Exception('Failed to fetch database details.');
+      }
+
+      final url = getApiUrl(updateBulkLeaveStatusEndpoint);
+      final payload = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'leave_ids': selectedLeaveIds,
+        'status': status,
+        'role': widget.role,
+      };
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['status'] == 'success') {
+          _showSnackbar('Leave statuses updated to $status');
+          setState(() {
+            selectedLeaveIds.clear();
+            selectAll = false;
+          });
+          await _fetchLeaveRequests();
+        } else {
+          _showSnackbar('Error updating leave statuses: ${responseData['message']}');
+        }
+      } else {
+        _showSnackbar('Failed to update statuses. Status code: ${response.statusCode}');
+      }
+    } catch (e) {
+      _showSnackbar('An error occurred: $e');
+    }
+  }
+
+
   // Helper function to show snackbars
   void _showSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message),
@@ -241,95 +303,209 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
 
   // Widget to display the list of leave requests
   Widget _buildLeaveRequestsList() {
-    return ListView.builder(
-      itemCount: leaveRequests!.length,
-      itemBuilder: (context, index) {
-        final leaveRequest = leaveRequests![index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10.0),
+    return Column(
+      children: [
+        // "Select All" Checkbox Header
+        Padding(
+          padding: EdgeInsets.all(10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Select All', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Checkbox(
+                value: selectAll,
+                onChanged: (value) {
+                  setState(() {
+                    selectAll = value!;
+                    selectedLeaveIds = selectAll
+                        ? leaveRequests!.map<int>((req) => req['leave_id'] as int).toList()
+                        : [];
+                  });
+                },
+              ),
+            ],
           ),
-          elevation: 4, // Add shadow for better aesthetics
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+
+        // Leave Requests List
+        Expanded(
+          child: ListView.builder(
+            itemCount: leaveRequests!.length,
+            itemBuilder: (context, index) {
+              final leaveRequest = leaveRequests![index];
+              final leaveId = leaveRequest['leave_id'];
+
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                elevation: 4, // Add shadow for better aesthetics
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Name and Checkbox
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${leaveRequest['first_name']} ${leaveRequest['last_name']}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Checkbox(
+                            value: selectedLeaveIds.contains(leaveId),
+                            onChanged: (value) {
+                              setState(() {
+                                if (value!) {
+                                  selectedLeaveIds.add(leaveId);
+                                } else {
+                                  selectedLeaveIds.remove(leaveId);
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 4),
+                      Text(
+                        'Leave Type: ${leaveRequest['leave_type']}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      // Dates
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'From: ${leaveRequest['start_date']}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          Text(
+                            'To: ${leaveRequest['end_date']}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Reason
+                      const SizedBox(height: 8),
+                      Text(
+                        'Reason: ${leaveRequest['reason']}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      // Status
+                      const SizedBox(height: 8),
+                      Text(
+                        'Status: ${leaveRequest['leave_status']}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: _getStatusColor(leaveRequest['leave_status']),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      // Buttons
+                      const SizedBox(height: 16),
+                      if (leaveRequest['leave_id'] != null)
+                        _buildActionButtons(leaveRequest)
+                      else
+                        const Text(
+                          'Invalid Leave ID',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Bulk Action Buttons (Shown Only When Items Are Selected)
+        if (selectedLeaveIds.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Wrap(
+              spacing: 10, // Horizontal space between buttons
+              runSpacing: 10, // Vertical space between wrapped rows
+              alignment: WrapAlignment.center, // Center-align the buttons
               children: [
-                // Name and Leave Type
-                Text(
-                  '${leaveRequest['first_name']} ${leaveRequest['last_name']}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Leave Type: ${leaveRequest['leave_type']}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-
-                // Dates
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'From: ${leaveRequest['start_date']}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                // Buttons for MANAGER role
+                if (widget.role == 'MANAGER') ...[
+                  ElevatedButton.icon(
+                    onPressed: () => _updateBulkLeaveStatus('Pending Admin Approval'),
+                    icon: Icon(Icons.check, color: Colors.white),
+                    label: Text(
+                      'Bulk Approve',
+                      style: TextStyle(color: Colors.white), // Ensure text color is white
                     ),
-                    Text(
-                      'To: ${leaveRequest['end_date']}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white, // Ensures text and icon color are white
                     ),
-                  ],
-                ),
-
-                // Reason
-                const SizedBox(height: 8),
-                Text(
-                  'Reason: ${leaveRequest['reason']}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
                   ),
-                ),
 
-                // Status
-                const SizedBox(height: 8),
-                Text(
-                  'Status: ${leaveRequest['leave_status']}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: _getStatusColor(leaveRequest['leave_status']),
-                    fontWeight: FontWeight.bold,
+                  ElevatedButton.icon(
+                    onPressed: () => _updateBulkLeaveStatus('Rejected'),
+                    icon: Icon(Icons.close, color: Colors.white),
+                    label: Text('Bulk Reject', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                   ),
-                ),
+                  ElevatedButton.icon(
+                    onPressed: () => _updateBulkLeaveStatus('Not Approve'),
+                    icon: Icon(Icons.remove_circle, color: Colors.white),
+                    label: Text('Bulk Not Approve', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  ),
+                ],
 
-                // Buttons
-                const SizedBox(height: 16),
-                if (leaveRequest['leave_id'] != null)
-                  _buildActionButtons(leaveRequest)
-                else
-                  const Text(
-                    'Invalid Leave ID',
-                    style: TextStyle(color: Colors.red),
+                // Buttons for ADMIN/SUPER ADMIN role (Only if status is "Pending Admin Approval")
+                if ((widget.role == 'ADMIN' || widget.role == 'SUPER ADMIN') && selectedLeaveIds.isNotEmpty) ...[
+                  ElevatedButton.icon(
+                    onPressed: () => _updateBulkLeaveStatus('Approved'),
+                    icon: Icon(Icons.check, color: Colors.white),
+                    label: Text('Bulk Approve', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                   ),
+                  ElevatedButton.icon(
+                    onPressed: () => _updateBulkLeaveStatus('Rejected'),
+                    icon: Icon(Icons.close, color: Colors.white),
+                    label: Text('Bulk Reject', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _updateBulkLeaveStatus('Not Approve'),
+                    icon: Icon(Icons.remove_circle, color: Colors.white),
+                    label: Text('Bulk Not Approve', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  ),
+                ],
               ],
             ),
           ),
-        );
-      },
+      ],
     );
   }
 
@@ -434,6 +610,4 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
       onPressed: onPressed,
     );
   }
-
-
 }
