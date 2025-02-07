@@ -342,162 +342,154 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
   Widget _buildAttendanceRequestsList() {
     return Column(
       children: [
-        // "Select All" Checkbox
-        CheckboxListTile(
-          title: Text(
-            'Select All',
-            style: TextStyle(fontWeight: FontWeight.bold),
+        // Header with "Select All" Checkbox
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Select All Requests',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              Transform.scale(
+                scale: 1.2, // Larger checkbox for better UX
+                child: Checkbox(
+                  value: selectAll,
+                  activeColor: Colors.blueAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                  onChanged: (bool? value) {
+                    setState(() {
+                      selectAll = value!;
+                      selectedAttendanceIds = selectAll
+                          ? attendanceRequests!.map<int>((req) => (req['id'] ?? req['attendance_id']) as int).toList()
+                          : [];
+                    });
+                  },
+                ),
+              ),
+            ],
           ),
-          value: selectAll,
-          onChanged: (bool? value) {
-            setState(() {
-              selectAll = value!;
-              selectedAttendanceIds = selectAll
-                  ? attendanceRequests!.map<int>((req) => (req['id'] ?? req['attendance_id']) as int).toList()
-                  : [];
-            });
-          },
         ),
 
         Expanded(
           child: ListView.builder(
             itemCount: attendanceRequests!.length,
+            padding: EdgeInsets.symmetric(horizontal: 10),
             itemBuilder: (context, index) {
               final request = attendanceRequests![index];
               final attendanceId = request['id'] ?? request['attendance_id'];
 
-              return Card(
-                margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
+              return Dismissible(
+                key: Key(attendanceId.toString()),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  alignment: Alignment.centerRight,
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Icon(Icons.delete, color: Colors.white, size: 28),
                 ),
-                elevation: 4,
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Top Row: Name and Checkbox
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${request['first_name']} ${request['last_name']}',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                onDismissed: (direction) {
+                  setState(() {
+                    attendanceRequests!.removeAt(index);
+                  });
+                },
+                child: Card(
+                  margin: EdgeInsets.symmetric(vertical: 8.0),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15.0)),
+                  elevation: 8,
+                  shadowColor: Colors.grey.withOpacity(0.3),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.white, Colors.grey.shade100],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(15.0),
+                    ),
+                    padding: EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name and Checkbox
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${request['first_name']} ${request['last_name']}',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                             ),
-                          ),
-                          Checkbox(
-                            value: selectedAttendanceIds.contains(attendanceId),
-                            onChanged: (bool? value) {
-                              setState(() {
-                                if (value!) {
-                                  selectedAttendanceIds.add(attendanceId as int);
-                                } else {
-                                  selectedAttendanceIds.remove(attendanceId);
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 6),
-
-                      // Attendance Details
-                      Row(
-                        children: [
-                          Icon(Icons.location_on, size: 18, color: Colors.blueGrey),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Place: ${request['place']}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 4),
-
-                      Row(
-                        children: [
-                          Icon(Icons.date_range, size: 18, color: Colors.blueGrey),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Date: ${request['atten_date']}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 4),
-
-                      Row(
-                        children: [
-                          Icon(Icons.access_time, size: 18, color: Colors.blueGrey),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Sign In: ${request['signin_time']}  |  Sign Out: ${request['signout_time']}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 4),
-
-                      Row(
-                        children: [
-                          Icon(Icons.timelapse, size: 18, color: Colors.blueGrey),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Working Hours: ${request['working_hour']}',
-                              style: TextStyle(fontSize: 14, color: Colors.grey),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 8),
-
-                      // Status
-                      Row(
-                        children: [
-                          Icon(Icons.info_outline, size: 18, color: _getStatusColor(request['status'])),
-                          SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'Status: ${request['status']}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _getStatusColor(request['status']),
-                                fontWeight: FontWeight.bold,
+                            Transform.scale(
+                              scale: 1.2, // Smooth checkbox interaction
+                              child: Checkbox(
+                                value: selectedAttendanceIds.contains(attendanceId),
+                                activeColor: Colors.blue,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    if (value!) {
+                                      selectedAttendanceIds.add(attendanceId as int);
+                                    } else {
+                                      selectedAttendanceIds.remove(attendanceId);
+                                    }
+                                  });
+                                },
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 16),
-
-                      // Action Buttons
-                      if (attendanceId != null)
-                        _buildActionButtons(attendanceId, index)
-                      else
-                        Text(
-                          'Invalid ID',
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          ],
                         ),
-                    ],
+
+                        Divider(color: Colors.grey.shade300),
+
+                        _buildInfoRow(Icons.location_on, 'Place: ${request['place']}'),
+                        _buildInfoRow(Icons.date_range, 'Date: ${request['atten_date']}'),
+                        _buildInfoRow(Icons.access_time, 'Sign In: ${request['signin_time']} | Sign Out: ${request['signout_time']}'),
+                        _buildInfoRow(Icons.timelapse, 'Working Hours: ${request['working_hour']}'),
+
+                        SizedBox(height: 10),
+
+                        // Status with Border Design
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _getStatusColor(request['status']), width: 1.5),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.info_outline, size: 18, color: _getStatusColor(request['status'])),
+                              SizedBox(width: 6),
+                              Text(
+                                'Status: ${request['status']}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _getStatusColor(request['status']),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: 12),
+
+                        // Animated Action Buttons
+                        if (attendanceId != null)
+                          _buildActionButtons(attendanceId, index)
+                        else
+                          Text(
+                            'Invalid ID',
+                            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -512,25 +504,95 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildIconWithLabel(
-                  icon: Icons.check,
-                  color: Colors.green,
-                  label: 'Bulk Approve',
-                  onPressed: () => _updateBulkAttendanceStatus('Approved'),
-                ),
-                SizedBox(width: 10),
-                _buildIconWithLabel(
-                  icon: Icons.close,
-                  color: Colors.red,
-                  label: 'Bulk Reject',
-                  onPressed: () => _updateBulkAttendanceStatus('Rejected'),
-                ),
+                if (widget.role == 'MANAGER') ...[
+                  _buildStyledButton(
+                     Icons.check,
+                     Colors.green,
+                     'Bulk Approve',
+                     () => _updateBulkAttendanceStatus('Pending Admin Approval'),
+                  ),
+                  SizedBox(width: 8.0), // Add spacing between buttons
+                  _buildStyledButton(
+                     Icons.close,
+                     Colors.red,
+                    'Bulk Not Approved',
+                     () => _updateBulkAttendanceStatus('Not Approved'),
+                  ),
+                ],
+                SizedBox(width: 8.0), // Add spacing between buttons
+                if (widget.role == 'ADMIN' || widget.role == 'SUPER ADMIN') ...[
+                  _buildStyledButton(
+                     Icons.check,
+                     Colors.green,
+                     'Bulk Approve',
+                     () => _updateBulkAttendanceStatus( 'Approved'),
+                  ),
+                  SizedBox(width: 8.0), // Add spacing between buttons
+                  _buildStyledButton(
+                     Icons.close,
+                     Colors.red,
+                     'Bulk Reject',
+                     () => _updateBulkAttendanceStatus( 'Rejected'),
+                  ),
+                ],
               ],
             ),
           ),
       ],
     );
   }
+
+// Helper method for displaying icons with text
+  Widget _buildInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: Colors.blueGrey),
+          SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+// Styled Action Buttons with Hover Effect
+  Widget _buildStyledButton(IconData icon, Color color, String label, VoidCallback onPressed) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(10),
+      splashColor: Colors.white.withOpacity(0.2),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.4),
+              blurRadius: 10,
+              spreadRadius: 1,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white),
+            SizedBox(width: 6),
+            Text(label, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
 
 
   Color _getStatusColor(String status) {
