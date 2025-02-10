@@ -50,6 +50,8 @@ const String authEndpoint = "/Auth.php";
 const String changePasswordEndpoint = "/change_password.php";
 const String updateBulkAttendanceStatusEndpoint ="/update_bulk_attendance_status.php";
 const String updateBulkLeaveStatusEndpoint ="/update_bulk_leave_status.php";
+const String getApprovedLeavesEndpoint ="/get_approved_leaves.php";
+const String cancelLeaveEndpoint ="/cancel_leave.php";
 
 
 

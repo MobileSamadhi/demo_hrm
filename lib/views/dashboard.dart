@@ -28,6 +28,7 @@ import 'assign_shift.dart';
 import 'attendance.dart';
 import 'attendance_report.dart';
 import 'attendance_summary.dart';
+import 'cancel_leave.dart';
 import 'department.dart';
 import 'designation.dart';
 import 'disciplinary.dart';
@@ -508,6 +509,16 @@ Future<void> _initializeDashboard() async {
                           SnackBar(content: Text('User role not found')),
                         );
                       }
+                    },
+                  ),
+                if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
+                  _buildDrawerItem(
+                    text: 'Cancel Leaves',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => CancelLeavePage()),
+                      );
                     },
                   ),
                 if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
