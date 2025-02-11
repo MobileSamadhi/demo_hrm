@@ -34,6 +34,8 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   String? _selectedPlace;
   final List<String> _placeOptions = ['Office', 'Field'];
 
+  String _selectedAttendanceType = "Sign In";
+
   @override
   void initState() {
     super.initState();
@@ -142,74 +144,57 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
     }
     return null;
   }
-
   Future<void> _submitAttendance() async {
-    if (_formKey.currentState!.validate()) {
-      if (_dateController.text.isEmpty ||
-          _signinTimeController.text.isEmpty ||
-          _signoutTimeController.text.isEmpty ||
-          _workingHoursController.text.isEmpty ||
-          _selectedPlace == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please fill all required fields'), backgroundColor: Colors.red),
-        );
-        return;
-      }
+    if (!_formKey.currentState!.validate()) {
+      debugPrint("DEBUG: Form validation failed.");
+      return;
+    }
 
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? companyCode = prefs.getString('company_code');
-      if (companyCode == null || companyCode.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Company code is missing. Please log in again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+    debugPrint("DEBUG: Form validation passed!");
 
-      final dbDetails = await fetchDatabaseDetails(companyCode);
-      if (dbDetails == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to fetch database details. Please log in again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+    // Validate required fields
+    if (_dateController.text.isEmpty ||
+        (_selectedAttendanceType == "Sign In" && _signinTimeController.text.isEmpty) ||
+        (_selectedAttendanceType == "Sign Out" && _signoutTimeController.text.isEmpty) ||
+        _selectedPlace == null) {
 
-      final url = getApiUrl(addAttendanceEndpoint);
+      debugPrint("DEBUG: Validation failed!");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please fill all required fields'), backgroundColor: Colors.red),
+      );
+      return;
+    }
 
-      debugPrint('Submitting attendance with the following details:');
-      debugPrint('Database Host: ${dbDetails['database_host']}');
-      debugPrint('Database Name: ${dbDetails['database_name']}');
-      debugPrint('Database Username: ${dbDetails['database_username']}');
-      debugPrint('Database Password: ${dbDetails['database_password']}');
-      debugPrint('Company Code: $companyCode');
-      debugPrint('Employee ID: $_employeeId');
-      debugPrint('Attendance Date: ${_dateController.text}');
-      debugPrint('Sign-in Time: ${_signinTimeController.text}');
-      debugPrint('Sign-out Time: ${_signoutTimeController.text}');
-      debugPrint('Working Hours: ${_workingHoursController.text}');
-      debugPrint('Place: $_selectedPlace');
-      debugPrint('Reason: ${_reasonController.text.isEmpty ? 'No reason provided' : _reasonController.text}');
-      debugPrint('Role: $_employeeRole');
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? companyCode = prefs.getString('company_code');
 
-      // Handle null or empty values explicitly
+    if (companyCode == null || companyCode.isEmpty) {
+      _showErrorDialog("Company code is missing. Please log in again.");
+      return;
+    }
+
+    final dbDetails = await fetchDatabaseDetails(companyCode);
+    if (dbDetails == null) {
+      _showErrorDialog("Failed to fetch database details. Please log in again.");
+      return;
+    }
+
+    final url = getApiUrl(addAttendanceEndpoint);
+
+    try {
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'database_host': dbDetails['database_host'] ?? '', // Default to empty string
+          'database_host': dbDetails['database_host'] ?? '',
           'database_name': dbDetails['database_name'] ?? '',
           'database_username': dbDetails['database_username'] ?? '',
           'database_password': dbDetails['database_password'] ?? '',
           'company_code': companyCode,
           'emp_id': _employeeId,
-          'atten_date': _dateController.text.isNotEmpty ? _dateController.text : 'Unknown Date',
-          'signin_time': _signinTimeController.text.isNotEmpty ? _signinTimeController.text : 'Unknown Sign-in',
-          'signout_time': _signoutTimeController.text.isNotEmpty ? _signoutTimeController.text : 'Unknown Sign-out',
+          'atten_date': _dateController.text,
+          'signin_time': _selectedAttendanceType == "Sign In" ? _signinTimeController.text : null,
+          'signout_time': _selectedAttendanceType == "Sign Out" ? _signoutTimeController.text : null,
           'working_hour': _workingHoursController.text.isNotEmpty ? _workingHoursController.text : '0 hours 0 minutes',
           'place': _selectedPlace ?? 'Unknown Place',
           'reason': _reasonController.text.isEmpty ? 'No reason provided' : _reasonController.text,
@@ -218,38 +203,125 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
       );
 
       final result = json.decode(response.body);
+      debugPrint("DEBUG: API Response -> $result");
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: result['success'] ? Colors.green : Colors.red,
-        ),
-      );
+      if (result['success'] == true) {
+        _showSuccessDialog(result['message']);
 
-      if (result['success']) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message']), backgroundColor: Colors.green),
-        );
-
-        // Clear the form and reset fields
+        // Reset form on success
         _formKey.currentState!.reset();
         _dateController.clear();
         _signinTimeController.clear();
         _signoutTimeController.clear();
-        _workingHoursController.text = '0 hours'; // Reset to default value
+        _workingHoursController.text = '0 hours';
         _reasonController.clear();
         setState(() {
-          _selectedPlace = null; // Reset the dropdown
+          _selectedPlace = null;
         });
+
       } else {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message']), backgroundColor: Colors.red),
-        );
+        // Show the exact API error message
+        if (result.containsKey('error')) {
+          _showErrorDialog(result['error']);  // This ensures correct message is displayed
+        } else {
+          _showErrorDialog("Something went wrong. Please try again.");
+        }
       }
+    } catch (e) {
+      debugPrint("ERROR: $e");
+      _showErrorDialog("Something went wrong. Please try again.");
     }
   }
+
+// Show error popup
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20), // Rounded corners
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Color(0xFF0D9494)), // Icon for error
+            SizedBox(width: 8),
+            Text(
+              "Error",
+              style: TextStyle(
+                color: Color(0xFF0D9494), // Custom title color
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: 16, color: Colors.black87), // Styled content text
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Color(0xFF0D9494), // Button color
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10), // Rounded button
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: Text("OK", style: TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+// Show success popup
+  void _showSuccessDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20), // Rounded corners
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: Color(0xFF0D9494)), // Success Icon
+            SizedBox(width: 8),
+            Text(
+              "Success",
+              style: TextStyle(
+                color: Color(0xFF0D9494), // Custom title color
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: 16, color: Colors.black87), // Styled content text
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Color(0xFF0D9494), // Button color
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10), // Rounded button
+              ),
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: Text("OK", style: TextStyle(fontSize: 16)),
+          ),
+        ],
+      ),
+    );
+  }
+
 
 
 
@@ -295,7 +367,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
           key: _formKey,
           child: ListView(
             children: [
-              // Remaining Form Fields and UI elements
+              // Employee ID (Read-Only)
               TextFormField(
                 initialValue: _employeeId,
                 readOnly: true,
@@ -306,6 +378,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                 ),
               ),
               SizedBox(height: 16),
+
               // Attendance Date
               TextFormField(
                 controller: _dateController,
@@ -322,6 +395,8 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                 validator: (value) => value == null || value.isEmpty ? 'Please select a date' : null,
               ),
               SizedBox(height: 16),
+
+              // Employee Role (Read-Only)
               TextFormField(
                 initialValue: _employeeRole,
                 readOnly: true,
@@ -331,44 +406,81 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
                 ),
               ),
-
               SizedBox(height: 20),
 
-              // Sign-in Time
-              TextFormField(
-                controller: _signinTimeController,
-                decoration: InputDecoration(
-                  labelText: 'Sign-in Time',
-                  prefixIcon: Icon(Icons.timer, color: Color(0xFF0D9494)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.access_time, color: Color(0xFF0D9494)),
-                    onPressed: () => _selectTime(context, _signinTimeController),
+              // Sign In / Sign Out Option
+              Text("Attendance Type:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: Text("Sign In"),
+                      value: "Sign In",
+                      groupValue: _selectedAttendanceType,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedAttendanceType = value!;
+                          _signoutTimeController.clear(); // Clear Sign Out time when Sign In is selected
+                        });
+                      },
+                    ),
                   ),
-                ),
-                readOnly: true,
-                validator: (value) => value == null || value.isEmpty ? 'Please select sign-in time' : null,
+                  Expanded(
+                    child: RadioListTile<String>(
+                      title: Text("Sign Out"),
+                      value: "Sign Out",
+                      groupValue: _selectedAttendanceType,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedAttendanceType = value!;
+                          _signinTimeController.clear(); // Clear Sign In time when Sign Out is selected
+                        });
+                      },
+                    ),
+                  ),
+                ],
               ),
               SizedBox(height: 16),
 
-              // Sign-out Time
-              TextFormField(
-                controller: _signoutTimeController,
-                decoration: InputDecoration(
-                  labelText: 'Sign-out Time',
-                  prefixIcon: Icon(Icons.timer_off, color: Color(0xFF0D9494)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                  suffixIcon: IconButton(
-                    icon: Icon(Icons.access_time, color: Color(0xFF0D9494)),
-                    onPressed: () => _selectTime(context, _signoutTimeController),
+              // Sign-in Time (Show only if Sign In is selected)
+              if (_selectedAttendanceType == "Sign In") ...[
+                TextFormField(
+                  controller: _signinTimeController,
+                  decoration: InputDecoration(
+                    labelText: 'Sign-in Time',
+                    prefixIcon: Icon(Icons.timer, color: Color(0xFF0D9494)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.access_time, color: Color(0xFF0D9494)),
+                      onPressed: () => _selectTime(context, _signinTimeController),
+                    ),
                   ),
+                  readOnly: true,
+                  validator: (value) => value == null || value.isEmpty ? 'Please select sign-in time' : null,
                 ),
-                readOnly: true,
-                validator: (value) => value == null || value.isEmpty ? 'Please select sign-out time' : null,
-              ),
-              SizedBox(height: 16),
+                SizedBox(height: 16),
+              ],
 
-              // Working Hours
+              // Sign-out Time (Show only if Sign Out is selected)
+              if (_selectedAttendanceType == "Sign Out") ...[
+                TextFormField(
+                  controller: _signoutTimeController,
+                  decoration: InputDecoration(
+                    labelText: 'Sign-out Time',
+                    prefixIcon: Icon(Icons.timer_off, color: Color(0xFF0D9494)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.access_time, color: Color(0xFF0D9494)),
+                      onPressed: () => _selectTime(context, _signoutTimeController),
+                    ),
+                  ),
+                  readOnly: true,
+                  validator: (value) => value == null || value.isEmpty ? 'Please select sign-out time' : null,
+                ),
+                SizedBox(height: 16),
+              ],
+
+              // Working Hours (Auto-calculated)
               TextFormField(
                 controller: _workingHoursController,
                 readOnly: true,
@@ -377,7 +489,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                   prefixIcon: Icon(Icons.work_history, color: Color(0xFF0D9494)),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
                 ),
-                validator: (value) => value == null || value.isEmpty ? 'Please enter working hours' : null,
               ),
               SizedBox(height: 16),
 
@@ -412,6 +523,7 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
           ),
         ),
       ),
+
     );
   }
 }
