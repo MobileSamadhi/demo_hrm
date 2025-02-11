@@ -59,16 +59,19 @@ class _CancelLeavePageState extends State<CancelLeavePage> {
 
     if (companyCode == null || companyCode.isEmpty) {
       _showMessage("Company code is missing. Please log in again.", false);
+      print("DEBUG: Company code is null or empty.");
       return;
     }
 
     final dbDetails = await fetchDatabaseDetails(companyCode);
     if (dbDetails == null) {
       _showMessage("Failed to fetch database details. Please log in again.", false);
+      print("DEBUG: Failed to fetch database details.");
       return;
     }
 
     final url = getApiUrl(getApprovedLeavesEndpoint);
+    print("DEBUG: API URL -> $url");
 
     try {
       final response = await http.post(
@@ -83,17 +86,49 @@ class _CancelLeavePageState extends State<CancelLeavePage> {
         }),
       );
 
+      print("DEBUG: API Response Status Code -> ${response.statusCode}");
+      print("DEBUG: API Response Body -> ${response.body}");
+
       if (response.statusCode == 200) {
-        final List<dynamic> responseData = jsonDecode(response.body);
-        setState(() {
-          leaveList = responseData;
-          _isLoading = false;
-        });
+        final decodedResponse = jsonDecode(response.body);
+
+        if (decodedResponse is List) {
+          setState(() {
+            leaveList = decodedResponse;
+            _isLoading = false;
+          });
+          print("DEBUG: Successfully loaded ${leaveList.length} leave(s).");
+        } else if (decodedResponse is Map<String, dynamic>) {
+          print("DEBUG: Response is a Map instead of List. Possible incorrect API response format.");
+          if (decodedResponse.containsKey("data") && decodedResponse["data"] is List) {
+            setState(() {
+              leaveList = decodedResponse["data"];
+              _isLoading = false;
+            });
+            print("DEBUG: Extracted ${leaveList.length} leave(s) from 'data' field.");
+          } else {
+            setState(() {
+              leaveList = [];
+              _isLoading = false;
+            });
+            _showMessage("No approved leaves found.", false);
+            print("DEBUG: 'data' key missing or not a List. Setting leaveList to empty.");
+          }
+        } else {
+          _showMessage("Unexpected response format.", false);
+          print("DEBUG: Unexpected JSON format: $decodedResponse");
+        }
       } else {
         _showMessage("Failed to load leaves.", false);
+        print("DEBUG: API request failed with status code ${response.statusCode}");
       }
     } catch (error) {
       _showMessage("An error occurred: $error", false);
+      print("DEBUG: Exception caught -> $error");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -217,7 +252,34 @@ class _CancelLeavePageState extends State<CancelLeavePage> {
                   if (leave['leave_status'] == "Approved") // Show button only for approved leaves
                     ElevatedButton(
                       onPressed: () {
-                        cancelLeave(leave['id'].toString());
+                        // Show confirmation dialog before canceling leave
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Confirm Cancel'),
+                              content: Text('Are you sure you want to cancel the leave?'),
+                              actions: <Widget>[
+                                // Cancel button to close the dialog
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop(); // Close the dialog
+                                  },
+                                  child: Text('Cancel'),
+                                ),
+                                // Confirm button to proceed with leave cancellation
+                                TextButton(
+                                  onPressed: () {
+                                    // Call the cancelLeave function if confirmed
+                                    cancelLeave(leave['id'].toString());
+                                    Navigator.of(context).pop(); // Close the dialog
+                                  },
+                                  child: Text('Confirm'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
                       },
                       child: Text(
                         "Cancel Leave",
