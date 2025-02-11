@@ -480,18 +480,6 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
                 SizedBox(height: 16),
               ],
 
-              // Working Hours (Auto-calculated)
-              TextFormField(
-                controller: _workingHoursController,
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Working Hours',
-                  prefixIcon: Icon(Icons.work_history, color: Color(0xFF0D9494)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(30)),
-                ),
-              ),
-              SizedBox(height: 16),
-
               // Place Dropdown
               DropdownButtonFormField<String?>(
                 value: _selectedPlace,
