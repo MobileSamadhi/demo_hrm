@@ -60,6 +60,12 @@ class Attendance {
 }
 
 class AttendancePage extends StatefulWidget {
+
+  final String emId;
+  final String role;
+
+  const AttendancePage({required this.emId, required this.role, Key? key}) : super(key: key);
+
   @override
   _AttendancePageState createState() => _AttendancePageState();
 }
@@ -107,32 +113,42 @@ class _AttendancePageState extends State<AttendancePage> {
       throw Exception('Company code is missing. Please log in again.');
     }
 
-    // Fetch database details
     final dbDetails = await fetchDatabaseDetails(companyCode);
     if (dbDetails == null) {
       throw Exception('Failed to fetch database details. Please log in again.');
     }
 
-    final url = getApiUrl(attendanceEndpoint); // Replace with your actual attendance endpoint.
+    final url = getApiUrl(attendanceEndpoint); // Replace with your actual endpoint
+
+    final emId = (widget.role == 'EMPLOYEE' || widget.role == 'MANAGER')
+        ? widget.emId
+        : 'ALL'; // Pass em_id for EMPLOYEE and MANAGER, 'ALL' for ADMIN and SUPER ADMIN
+
+    final Map<String, dynamic> requestData = {
+      'em_id': emId,  // 'ALL' for ADMIN/SUPER ADMIN, actual em_id for EMPLOYEE
+      'role': widget.role,
+      'database_host': dbDetails['database_host'],
+      'database_name': dbDetails['database_name'],
+      'database_username': dbDetails['database_username'],
+      'database_password': dbDetails['database_password'],
+      'company_code': companyCode, // Ensure company code is included
+    };
+
+    print('🔍 Sending API Request: $requestData'); // Log request
 
     try {
-      // Make the POST request with database credentials
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'database_host': dbDetails['database_host'],
-          'database_name': dbDetails['database_name'],
-          'database_username': dbDetails['database_username'],
-          'database_password': dbDetails['database_password'],
-        }),
+        body: jsonEncode(requestData),
       );
 
+      print('⚡ Response Status: ${response.statusCode}');
+      print('⚡ Response Body: ${response.body}');
+
       if (response.statusCode == 200) {
-        // Parse JSON response
         final List<dynamic> jsonResponse = json.decode(response.body);
 
-        // Map JSON to Attendance objects and sort by `attenDate` in descending order
         final List<Attendance> attendanceList = jsonResponse
             .map<Attendance>((data) => Attendance.fromJson(data))
             .toList()
@@ -143,7 +159,6 @@ class _AttendancePageState extends State<AttendancePage> {
         throw Exception('Failed to load attendance. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      // Log and rethrow the exception
       print('Error fetching attendance: $e');
       rethrow;
     }

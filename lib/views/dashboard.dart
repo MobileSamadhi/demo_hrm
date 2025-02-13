@@ -240,16 +240,35 @@ Future<void> _initializeDashboard() async {
                 title: 'Attendance',
                 icon: Icons.view_agenda_rounded,
                 children: [
-                  if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
+                 // if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
                   _buildDrawerItem(
                     text: 'Attendance List',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => AttendancePage()),
-                      );
+                    onTap: () async {
+                      SharedPreferences prefs = await SharedPreferences.getInstance();
+                      String? emId = prefs.getString('em_id');
+                      String? role = prefs.getString('role');
+
+                      print('Retrieved em_id: $emId');
+                      print('Retrieved role: $role');
+
+                      if (role != null && role.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AttendancePage(
+                              emId: (role.toUpperCase() == 'ADMIN' || role.toUpperCase() == 'SUPER ADMIN') ? '' : emId!,
+                              role: role,
+                            ),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('User role not found')),
+                        );
+                      }
                     },
                   ),
+
                   _buildDrawerItem(
                     text: 'Add Attendance',
                     onTap: () async {
