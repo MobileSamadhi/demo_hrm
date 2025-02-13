@@ -40,21 +40,22 @@ class Attendance {
 
   factory Attendance.fromJson(Map<String, dynamic> json) {
     return Attendance(
-      id: json['id'] is String ? int.parse(json['id']) : json['id'], // Convert to int if it's a string
-      empId: json['emp_id'] is int ? json['emp_id'].toString() : json['emp_id'], // Ensure empId is a string
-      attenDate: json['atten_date'] is int ? json['atten_date'].toString() : json['atten_date'], // Convert date to string if it's an int
-      signinTime: json['signin_time'] is String ? json['signin_time'] : json['signin_time']?.toString(),
-      signoutTime: json['signout_time'] is String ? json['signout_time'] : json['signout_time']?.toString(),
-      workingHour: json['working_hour'] is String ? json['working_hour'] : json['working_hour']?.toString(),
-      place: json['place'] is String ? json['place'] : json['place']?.toString(),
-      absence: json['absence'] is String ? json['absence'] : json['absence']?.toString(),
-      overtime: json['overtime'] is String ? json['overtime'] : json['overtime']?.toString(),
-      earnleave: json['earnleave'] is String ? json['earnleave'] : json['earnleave']?.toString(),
-      status: json['status'] is String ? json['status'] : json['status']?.toString(),
-      firstName: json['first_name'] is String ? json['first_name'] : json['first_name']?.toString(),
-      lastName: json['last_name'] is String ? json['last_name'] : json['last_name']?.toString(),
+      id: json['id'] is String ? int.tryParse(json['id']) ?? 0 : json['id'] ?? 0,
+      empId: json['emp_id']?.toString() ?? 'N/A', // Handle null emp_id
+      attenDate: json['atten_date']?.toString() ?? 'N/A', // Handle null atten_date
+      signinTime: json['signin_time']?.toString() ?? 'N/A',
+      signoutTime: json['signout_time']?.toString() ?? 'N/A',
+      workingHour: json['working_hour']?.toString() ?? 'N/A',
+      place: json['place']?.toString() ?? 'N/A',
+      absence: json['absence']?.toString() ?? 'N/A',
+      overtime: json['overtime']?.toString() ?? 'N/A',
+      earnleave: json['earnleave']?.toString() ?? 'N/A',
+      status: json['status']?.toString() ?? 'N/A',
+      firstName: json['first_name']?.toString() ?? 'Unknown', // Ensure first name is not null
+      lastName: json['last_name']?.toString() ?? 'Unknown', // Ensure last name is not null
     );
   }
+
 
 }
 
@@ -366,10 +367,18 @@ class _AttendancePageState extends State<AttendancePage> {
   // Helper method to build rows in the attendance card
   Widget _buildRow(IconData icon, String text) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start, // Align items properly
       children: [
         Icon(icon, color: Colors.grey[600]),
         SizedBox(width: 5),
-        Text(text, style: TextStyle(fontSize: 14)),
+        Expanded( // Ensures the text does not overflow
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 14),
+            overflow: TextOverflow.ellipsis, // Adds "..." if the text is too long
+            maxLines: 2, // Prevents single-line overflow
+          ),
+        ),
       ],
     );
   }
