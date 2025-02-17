@@ -532,7 +532,7 @@ Future<void> _initializeDashboard() async {
                   ),
                 if (role?.toUpperCase() == 'SUPER ADMIN' || role?.toUpperCase() == 'ADMIN')
                   _buildDrawerItem(
-                    text: 'Cancel Leaves',
+                    text: 'Cancel Approved Leaves',
                     onTap: () {
                       Navigator.push(
                         context,

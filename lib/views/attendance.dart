@@ -50,7 +50,7 @@ class Attendance {
       absence: json['absence']?.toString() ?? 'N/A',
       overtime: json['overtime']?.toString() ?? 'N/A',
       earnleave: json['earnleave']?.toString() ?? 'N/A',
-      status: json['status']?.toString() ?? 'N/A',
+      status: (json['status']?.toString() ?? 'N/A') == 'A' ? 'Approved' : json['status']?.toString() ?? 'N/A',
       firstName: json['first_name']?.toString() ?? 'Unknown', // Ensure first name is not null
       lastName: json['last_name']?.toString() ?? 'Unknown', // Ensure last name is not null
     );
