@@ -17,7 +17,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.hrm_system"
+    namespace = "com.example.synnexhrm"
     compileSdk = 34
     ndkVersion = flutter.ndkVersion
 
@@ -31,7 +31,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.hrm_system"
+        applicationId = "com.example.synnexhrm"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -1,4 +1,4 @@
-package com.example.hrm_system
+package com.example.synnexhrm
 
 import io.flutter.embedding.android.FlutterActivity
 

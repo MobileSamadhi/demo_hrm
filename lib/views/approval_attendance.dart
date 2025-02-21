@@ -71,6 +71,8 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? companyCode = prefs.getString('company_code');
 
+      print('Fetched company code: $companyCode');
+
       if (companyCode == null || companyCode.isEmpty) {
         setState(() {
           hasError = true;
@@ -82,6 +84,8 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
 
       // Fetch database details
       final dbDetails = await fetchDatabaseDetails(companyCode);
+      print('Database details: $dbDetails');
+
       if (dbDetails == null) {
         setState(() {
           hasError = true;
@@ -93,23 +97,32 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
 
       // Prepare API request
       final url = getApiUrl(fetchAttendanceRequestsEndpoint);
+      print('API URL: $url');
+
+      final requestBody = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'em_id': widget.emId,
+        'role': widget.role,
+      };
+      print('Request body: ${json.encode(requestBody)}');
+
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'database_host': dbDetails['database_host'],
-          'database_name': dbDetails['database_name'],
-          'database_username': dbDetails['database_username'],
-          'database_password': dbDetails['database_password'],
-          'company_code': companyCode,
-          'em_id': widget.emId,
-          'role': widget.role,
-        }),
+        body: json.encode(requestBody),
       );
+
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
         if (responseData['status'] == 'success') {
+          print('Attendance data received: ${responseData['data']}');
           setState(() {
             attendanceRequests = responseData['data'];
             isLoading = false;
@@ -126,9 +139,10 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
           hasError = true;
           isLoading = false;
         });
-        //_showSnackbar('Failed to fetch data. Status code: ${response.statusCode}');
+        _showSnackbar('Failed to fetch data. Status code: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error fetching attendance requests: $e');
       setState(() {
         hasError = true;
         isLoading = false;
@@ -137,61 +151,60 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
     }
   }
 
-  void _showSnackbar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-
   Future<void> _updateAttendanceStatus(int attendanceId, String status, int index) async {
     try {
-      // Get the company code from shared preferences
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? companyCode = prefs.getString('company_code');
+
+      print('Fetched company code: $companyCode');
 
       if (companyCode == null || companyCode.isEmpty) {
         _showSnackbar('Company code is missing. Please log in again.');
         return;
       }
 
-      // Fetch database details
       final dbDetails = await fetchDatabaseDetails(companyCode);
+      print('Database details: $dbDetails');
+
       if (dbDetails == null) {
         _showSnackbar('Failed to fetch database details. Please log in again.');
         return;
       }
 
-      // Prepare the API URL
       final url = getApiUrl(updateAttendanceStatusEndpoint);
+      print('API URL: $url');
 
-      // Make the HTTP POST request
+      final requestBody = {
+        'database_host': dbDetails['database_host'],
+        'database_name': dbDetails['database_name'],
+        'database_username': dbDetails['database_username'],
+        'database_password': dbDetails['database_password'],
+        'company_code': companyCode,
+        'attendance_id': attendanceId,
+        'status': status,
+        'role': widget.role,
+      };
+
+      print('Request body: ${json.encode(requestBody)}');
+
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'database_host': dbDetails['database_host'],
-          'database_name': dbDetails['database_name'],
-          'database_username': dbDetails['database_username'],
-          'database_password': dbDetails['database_password'],
-          'company_code': companyCode,
-          'attendance_id': attendanceId,
-          'status': status,
-          'role': widget.role,
-        }),
+        body: json.encode(requestBody),
       );
 
-      // Handle the response
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final responseData = json.decode(response.body);
 
         if (responseData['status'] == 'success') {
           _showSnackbar('Attendance status updated to $status');
 
-          // Remove the record from the list
+          // Debugging signout_time issue
+          print('Updated record: ${attendanceRequests![index]}');
+
           setState(() {
             attendanceRequests!.removeAt(index);
           });
@@ -202,8 +215,18 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
         _showSnackbar('Failed to update status. Status code: ${response.statusCode}');
       }
     } catch (e) {
+      print('Error updating attendance status: $e');
       _showSnackbar('An error occurred: $e');
     }
+  }
+
+  void _showSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green, // Change color if needed
+      ),
+    );
   }
 
   Future<void> _updateBulkAttendanceStatus(String status) async {
@@ -657,5 +680,4 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
       onPressed: onPressed,
     );
   }
-
 }
