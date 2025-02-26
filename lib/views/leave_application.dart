@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../constants.dart';
+import '../notification.dart';
 import 'dashboard.dart';
 
 class LeaveApplicationPage extends StatefulWidget {
@@ -142,12 +143,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save(); // Save the form values into state variables
-
-      print('Submitting form...');
-      print('Selected Leave Type: $_selectedLeaveType');
-      print('Selected Type ID: $_selectedTypeId');
-      print('Reason: $_reason');
+      _formKey.currentState!.save();
 
       if (_selectedTypeId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -157,7 +153,6 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
       }
 
       try {
-        // Fetch company code from shared preferences
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         final String? companyCode = prefs.getString('company_code');
 
@@ -165,16 +160,13 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           throw Exception('Company code is missing. Please log in again.');
         }
 
-        // Fetch database details using the company code
         final dbDetails = await fetchDatabaseDetails(companyCode);
         if (dbDetails == null) {
           throw Exception('Failed to fetch database details.');
         }
 
-        // Prepare API URL for submitting the leave application
         final url = getApiUrl(leaveApplicationEndpoint);
 
-        // Prepare the payload with all required fields
         final Map<String, dynamic> payload = {
           'database_host': dbDetails['database_host'],
           'database_name': dbDetails['database_name'],
@@ -192,17 +184,11 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           'role': _role,
         };
 
-        print('Submitting leave application with payload: $payload');
-
-        // Send the POST request to the server
         final response = await http.post(
           Uri.parse(url),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(payload),
         );
-
-        print('Response Code: ${response.statusCode}');
-        print('Response Body: ${response.body}');
 
         if (response.statusCode == 200) {
           final result = jsonDecode(response.body);
@@ -216,7 +202,12 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
             ),
           );
 
-          // Clear the form and reset fields after successful submission
+          // ✅ Trigger Local Notification for Manager
+          NotificationService.showLocalNotification(
+              "Leave Application Submitted",
+              "Employee $_employeeId applied for leave from ${_startDate.toLocal().toString().split(' ')[0]} to ${_endDate.toLocal().toString().split(' ')[0]}. Pending approval."
+          );
+
           _clearForm();
         } else {
           throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
@@ -229,8 +220,6 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           ),
         );
       }
-    } else {
-      print('Form validation failed.');
     }
   }
 

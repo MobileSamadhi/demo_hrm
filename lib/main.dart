@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:hrm_system/views/login.dart';
+import 'package:timezone/data/latest.dart' as tz;
 
-void main() {
+import 'notification.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.init(); // Initialize local notifications
+  tz.initializeTimeZones(); // Initialize time zones
+
   runApp(HRMSystem());
 }
 
