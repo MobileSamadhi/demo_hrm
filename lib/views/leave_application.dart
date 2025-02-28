@@ -143,7 +143,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
+      _formKey.currentState!.save(); // Save form values
 
       if (_selectedTypeId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -202,10 +202,10 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
             ),
           );
 
-          // ✅ Trigger Local Notification for Manager
-          NotificationService.showLocalNotification(
-              "Leave Application Submitted",
-              "Employee $_employeeId applied for leave from ${_startDate.toLocal().toString().split(' ')[0]} to ${_endDate.toLocal().toString().split(' ')[0]}. Pending approval."
+          // ✅ Send local notification after successful leave application submission
+          await NotificationService.showLocalNotification(
+            "Leave Application Submitted",
+            "Employee $_employeeId applied for leave from ${_startDate.toLocal().toString().split(' ')[0]} to ${_endDate.toLocal().toString().split(' ')[0]}.",
           );
 
           _clearForm();
@@ -220,8 +220,11 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
           ),
         );
       }
+    } else {
+      print('Form validation failed.');
     }
   }
+
 
   void _clearForm() {
     setState(() {
@@ -359,30 +362,30 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
               SizedBox(height: 20),
 
               // Leave Type Dropdown
-          _buildFormCard(
-            title: 'Leave Details',
-            child:
-               _buildDropdownButtonFormField(
-                labelText: 'Leave Type',
-                icon: Icons.category,
-                value: _selectedLeaveType,
-                items: [
-                  ..._leaveTypes.map((item) => DropdownMenuItem<String>(
-                    value: item['type_name'],
-                    child: Text(item['type_name']!),
-                  )),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedLeaveType = value;
-                    _selectedTypeId = value == 'Select Here..'
-                        ? null
-                        : _leaveTypes
-                        .firstWhere((item) => item['type_name'] == value)['id'];
-                  });
-                },
+              _buildFormCard(
+                title: 'Leave Details',
+                child:
+                _buildDropdownButtonFormField(
+                  labelText: 'Leave Type',
+                  icon: Icons.category,
+                  value: _selectedLeaveType,
+                  items: [
+                    ..._leaveTypes.map((item) => DropdownMenuItem<String>(
+                      value: item['type_name'],
+                      child: Text(item['type_name']!),
+                    )),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedLeaveType = value;
+                      _selectedTypeId = value == 'Select Here..'
+                          ? null
+                          : _leaveTypes
+                          .firstWhere((item) => item['type_name'] == value)['id'];
+                    });
+                  },
+                ),
               ),
-          ),
 
 
 
