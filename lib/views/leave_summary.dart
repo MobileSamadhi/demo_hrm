@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -108,6 +109,10 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
   }
 
 
+// Initialize the notifications plugin
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+
   Future<void> _fetchLeaveData() async {
     final String apiUrl = getApiUrl(leaveSummaryEndpoint);
 
@@ -117,7 +122,6 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
     });
 
     try {
-      // Fetch company code from SharedPreferences
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? companyCode = prefs.getString('company_code');
 
@@ -125,13 +129,11 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
         throw Exception('Company code is missing. Please log in again.');
       }
 
-      // Fetch database details using the company code
       final dbDetails = await fetchDatabaseDetails(companyCode);
       if (dbDetails == null) {
         throw Exception('Failed to fetch database details. Please log in again.');
       }
 
-      // Prepare the payload for the request
       final Map<String, dynamic> payload = {
         'database_host': dbDetails['database_host'],
         'database_name': dbDetails['database_name'],
@@ -140,19 +142,17 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
         'company_code': companyCode,
       };
 
-      print('Fetching leave data with payload: $payload'); // Debug log
+      print('Fetching leave data with payload: $payload');
 
-      // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId, // Include Session-ID if needed
+          'Session-ID': widget.sessionId,
         },
         body: jsonEncode(payload),
       );
 
-      // Log the response
       print('Response Code: ${response.statusCode}');
       print('Response Body: ${response.body}');
 
@@ -160,8 +160,23 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> leaveData = data['data'];
+          List<LeaveSummary> leaveList = leaveData
+              .map((leave) => LeaveSummary.fromJson(leave))
+              .toList();
+
+          // Find the latest approved or rejected leave
+          LeaveSummary? latestLeave = leaveList.firstWhere(
+                (leave) => leave.status == 'Approved' || leave.status == 'Rejected',
+            orElse: () => LeaveSummary(id: '', leaveType: '', startDate: '', endDate: '', duration: '', applyDate: '', reason: '', status: ''),
+          );
+
+          if (latestLeave.id.isNotEmpty) {
+            // Show local push notification
+            showLeaveNotification(latestLeave);
+          }
+
           setState(() {
-            _leaveList = leaveData.map((leave) => LeaveSummary.fromJson(leave)).toList();
+            _leaveList = leaveList;
             _isLoading = false;
           });
         } else {
@@ -183,6 +198,29 @@ class _LeaveSummaryPageState extends State<LeaveSummaryPage> {
       });
     }
   }
+
+  Future<void> showLeaveNotification(LeaveSummary leave) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'leave_channel',
+      'Leave Notifications',
+      channelDescription: 'Notifies when leave is approved or rejected',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      0, // Notification ID
+      'Leave ${leave.status}', // Title
+      'Your leave from ${leave.startDate} to ${leave.endDate} has been ${leave.status.toLowerCase()}.', // Body
+      notificationDetails,
+    );
+  }
+
 
 
   @override

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -109,6 +110,10 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
     }
   }
 
+// Initialize the notifications plugin
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
+
   Future<void> _fetchAttendanceData() async {
     final String apiUrl = getApiUrl(attendanceSummaryEndpoint);
 
@@ -141,19 +146,18 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
         'company_code': companyCode,
       };
 
-      print('Fetching attendance data with payload: $payload'); // Debug log
+      print('Fetching attendance data with payload: $payload');
 
       // Make the POST request
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {
           'Content-Type': 'application/json',
-          'Session-ID': widget.sessionId, // Include Session-ID if needed
+          'Session-ID': widget.sessionId,
         },
         body: jsonEncode(payload),
       );
 
-      // Log the response
       print('Response Code: ${response.statusCode}');
       print('Response Body: ${response.body}');
 
@@ -161,10 +165,23 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> attendanceData = data['data'];
+          List<AttendanceSummary> attendanceList = attendanceData
+              .map((attendance) => AttendanceSummary.fromJson(attendance))
+              .toList();
+
+          // Find the latest approved or rejected attendance
+          AttendanceSummary? latestAttendance = attendanceList.firstWhere(
+                (attendance) => attendance.status == 'Approved' || attendance.status == 'Rejected',
+            orElse: () => AttendanceSummary(id: '', date: '', signInTime: '', signOutTime: '', workingHours: '', place: '', absence: '', overtime: '', status: ''),
+          );
+
+          if (latestAttendance.id.isNotEmpty) {
+            // Show local push notification
+            showAttendanceNotification(latestAttendance);
+          }
+
           setState(() {
-            _attendanceList = attendanceData
-                .map((attendance) => AttendanceSummary.fromJson(attendance))
-                .toList();
+            _attendanceList = attendanceList;
             _isLoading = false;
           });
         } else {
@@ -186,6 +203,30 @@ class _AttendanceSummaryPageState extends State<AttendanceSummaryPage> {
       });
     }
   }
+
+  Future<void> showAttendanceNotification(AttendanceSummary attendance) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'attendance_channel',
+      'Attendance Notifications',
+      channelDescription: 'Notifies when attendance is approved or rejected',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      0, // Notification ID
+      'Attendance ${attendance.status}', // Title
+      'Your attendance on ${attendance.date} has been ${attendance.status.toLowerCase()}.', // Body
+      notificationDetails,
+    );
+  }
+
+
 
 
   @override

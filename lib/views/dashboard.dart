@@ -103,7 +103,7 @@ Future<void> _initializeDashboard() async {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Powered by Synnex IT Solution 2024',
+              'Powered by Synnex IT Solution 2025',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,

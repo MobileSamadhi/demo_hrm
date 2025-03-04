@@ -202,7 +202,7 @@ class _LeaveApplicationPageState extends State<LeaveApplicationPage> {
             ),
           );
 
-          // ✅ Send local notification after successful leave application submission
+          //  Send local notification after successful leave application submission
           await NotificationService.showLocalNotification(
             "Leave Application Submitted",
             "Employee $_employeeId applied for leave from ${_startDate.toLocal().toString().split(' ')[0]} to ${_endDate.toLocal().toString().split(' ')[0]}.",
