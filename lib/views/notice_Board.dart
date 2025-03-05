@@ -1,10 +1,12 @@
 import 'dart:convert';
-import 'dart:io'; // Import the dart:io library
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:hrm_system/constants.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
 import 'dashboard.dart';
 
@@ -32,15 +34,37 @@ class NoticeBoardSection extends StatefulWidget {
 
 class _NoticeBoardSectionState extends State<NoticeBoardSection> {
   late Future<List<Notice>> futureNotices;
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     futureNotices = fetchNotices();
   }
 
+  void _initializeNotifications() async {
+    const AndroidInitializationSettings androidInitializationSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    final InitializationSettings initializationSettings = InitializationSettings(
+      android: androidInitializationSettings,
+      iOS: iosSettings,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+
   Future<Map<String, String>?> fetchDatabaseDetails(String companyCode) async {
-    final url = getApiUrl(authEndpoint); // Replace with your actual authentication endpoint.
+    final url = getApiUrl(authEndpoint);
 
     try {
       final response = await http.post(
@@ -49,14 +73,8 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
         body: jsonEncode({'company_code': companyCode}),
       );
 
-      // Log the response code and body for debugging
-      print('Response Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-
-        // Check if the response contains valid data
         if (data.isNotEmpty && data[0]['status'] == 1) {
           final dbDetails = data[0];
           return {
@@ -65,23 +83,14 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
             'database_username': dbDetails['database_username'],
             'database_password': dbDetails['database_password'],
           };
-        } else {
-          print('Invalid response: ${data}');
-          return null;
         }
-      } else {
-        // Handle non-200 status codes
-        print('Error fetching database details. Status code: ${response.statusCode}');
-        print('Response Body: ${response.body}');
-        return null;
       }
     } catch (e) {
       print('Error fetching database details: $e');
-      return null;
     }
+    return null;
   }
 
-// Method to fetch department data
   Future<List<Notice>> fetchNotices() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? companyCode = prefs.getString('company_code');
@@ -90,24 +99,14 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
       throw Exception('Company code is missing. Please log in again.');
     }
 
-    // Fetch database details
     final dbDetails = await fetchDatabaseDetails(companyCode);
     if (dbDetails == null) {
       throw Exception('Failed to fetch database details. Please log in again.');
     }
 
-    final url = getApiUrl(noticeEndpoint); // Replace with your actual endpoint
+    final url = getApiUrl(noticeEndpoint);
 
     try {
-      // Log the request body before sending it
-      print('Sending request body: ${jsonEncode({
-        'database_host': dbDetails['database_host'],
-        'database_name': dbDetails['database_name'],
-        'database_username': dbDetails['database_username'],
-        'database_password': dbDetails['database_password'],
-        'company_code': companyCode, // Include company_code here
-      })}');
-
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
@@ -116,30 +115,58 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
           'database_name': dbDetails['database_name'],
           'database_username': dbDetails['database_username'],
           'database_password': dbDetails['database_password'],
-          'company_code': companyCode, // Ensure company_code is included in the request
+          'company_code': companyCode,
         }),
       );
 
-      // Log the response body
-      print('Response Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
       if (response.statusCode == 200) {
-        // Parse JSON response
         List<dynamic> jsonResponse = json.decode(response.body);
+        List<Notice> notices = jsonResponse.map<Notice>((data) => Notice.fromJson(data)).toList();
 
-        // Map JSON to Department objects
-        return jsonResponse.map<Notice>((data) => Notice.fromJson(data)).toList();
+        // Get today's date in both possible formats
+        String todayDate1 = DateFormat('yyyy-MM-dd').format(DateTime.now()); // "2025-03-05"
+        String todayDate2 = DateFormat('yyyy/MM/dd').format(DateTime.now()); // "2025/03/05"
+
+        // Filter notices for today's date in either format
+        List<Notice> todayNotices = notices.where((notice) {
+          return notice.date == todayDate1 || notice.date == todayDate2;
+        }).toList();
+
+        if (todayNotices.isNotEmpty) {
+          for (var notice in todayNotices) {
+            _showNotification(notice);
+          }
+        }
+
+        return notices;
       } else {
-        // Log the response body if the status code is not 200
-        print('Failed to load notices. Status code: ${response.statusCode}');
-        print('Response Body: ${response.body}');
         throw Exception('Failed to load notices. Status code: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching notices: $e');
       throw Exception('Error fetching notices: $e');
     }
+  }
+
+  Future<void> _showNotification(Notice notice) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'notice_channel',
+      'Notice Notifications',
+      channelDescription: 'Notifies about new notices',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000), // Unique ID
+      'New Notice: ${notice.title}',
+      'Published on ${notice.date}',
+      notificationDetails,
+    );
   }
 
 
@@ -147,8 +174,9 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Notice Board', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-        backgroundColor: Platform.isIOS ? Color(0xFF0D9494) : Color(0xFF0D9494),
+        title: Text('Notice Board',
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
+        backgroundColor: Color(0xFF0D9494),
         leading: IconButton(
           icon: Icon(
             Platform.isIOS ? CupertinoIcons.back : Icons.arrow_back,
@@ -157,7 +185,8 @@ class _NoticeBoardSectionState extends State<NoticeBoardSection> {
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => DashboardPage(emId: '',)),
+              MaterialPageRoute(
+                  builder: (context) => DashboardPage(emId: '',)),
             );
           },
         ),
