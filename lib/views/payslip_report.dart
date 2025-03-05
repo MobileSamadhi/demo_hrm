@@ -199,19 +199,22 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: TextField(
-            onChanged: _onSearchChanged,
-            decoration: InputDecoration(
-              labelText: 'Search by Month',
-              hintText: 'Enter Month',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
+          child: Material( //  Wrap with Material to avoid "No Material widget found" error
+            type: MaterialType.transparency,
+            child: TextField(
+              onChanged: _onSearchChanged,
+              decoration: InputDecoration(
+                labelText: 'Search by Month',
+                hintText: 'Enter Month',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ),
         ),
-        Expanded(
+        Expanded( //  Wrap ListView in Expanded to prevent overflow
           child: FutureBuilder<List<dynamic>>(
             future: _paySalaries,
             builder: (context, snapshot) {
@@ -233,6 +236,7 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
                 );
               } else {
                 return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   itemCount: snapshot.data!.length,
                   itemBuilder: (context, index) {
                     final salary = snapshot.data![index];
@@ -244,7 +248,6 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
                     final etf = isPermanent ? (basicSalary * 0.03).toDouble() : 0.0;
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       color: Colors.white,
                       elevation: 3,
                       shape: RoundedRectangleBorder(
@@ -252,41 +255,37 @@ class _PaySalaryPageState extends State<PaySalaryPage> {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
-                    child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                    Text(
-                    '${salary['first_name']} ${salary['last_name']}',
-                    style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0D9494),
-                    ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                    'Month: ${salary['month'] ?? 'N/A'} - Year: ${salary['year'] ?? 'N/A'}',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    const Divider(height: 20, color: Color(0xFF0D9494)),
-                    TextRow(label: 'Total Days', value: '${salary['total_days']}'),
-                    TextRow(label: 'Basic Pay', value: 'LKR: ${salary['basic'] ?? 'N/A'}'),
-                    TextRow(label: 'Bonus', value: 'LKR:${salary['bonus'] ?? 'N/A'}'),
-                    TextRow(label: 'Loan', value: 'LKR:${salary['loan'] ?? 'N/A'}'),
-                    TextRow(label: 'Addition', value: 'LKR:${salary['addition'] ?? 'N/A'}'),
-                    TextRow(label: 'Deduction', value: 'LKR:${salary['diduction'] ?? 'N/A'}'),
-                    const Divider(height: 20, color: Color(0xFF0D9494)),
-                    TextRow(label: 'EPF (8%)', value: 'LKR: ${epfEmployee.toStringAsFixed(2)}'),
-                    TextRow(label: 'EPF (12%)', value: 'LKR: ${epfEmployer.toStringAsFixed(2)}'),
-                    TextRow(label: 'ETF (3%)', value: 'LKR: ${etf.toStringAsFixed(2)}'),
-                      TextRow(label: 'Total Pay', value: 'LKR: ${salary['total_pay'] ?? 'N/A'}'),
-                    //TextRow(label: 'Total Pay', value: 'LKR: ${double.parse(salary['total_pay'])}'),
-                      const SizedBox(height: 10),
-                    ],
-                    ),
-                      ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${salary['first_name']} ${salary['last_name']}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF0D9494),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Month: ${salary['month'] ?? 'N/A'} - Year: ${salary['year'] ?? 'N/A'}',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            ),
+                            const Divider(height: 20, color: Color(0xFF0D9494)),
+                            TextRow(label: 'Total Days', value: '${salary['total_days']}'),
+                            TextRow(label: 'Basic Pay', value: 'LKR: ${salary['basic'] ?? 'N/A'}'),
+                            TextRow(label: 'Bonus', value: 'LKR:${salary['bonus'] ?? 'N/A'}'),
+                            TextRow(label: 'Loan', value: 'LKR:${salary['loan'] ?? 'N/A'}'),
+                            TextRow(label: 'Addition', value: 'LKR:${salary['addition'] ?? 'N/A'}'),
+                            TextRow(label: 'Deduction', value: 'LKR:${salary['deduction'] ?? 'N/A'}'),
+                            const Divider(height: 20, color: Color(0xFF0D9494)),
+                            TextRow(label: 'EPF (8%)', value: 'LKR: ${epfEmployee.toStringAsFixed(2)}'),
+                            TextRow(label: 'EPF (12%)', value: 'LKR: ${epfEmployer.toStringAsFixed(2)}'),
+                            TextRow(label: 'ETF (3%)', value: 'LKR: ${etf.toStringAsFixed(2)}'),
+                            //TextRow(label: 'Total Pay', value: 'LKR: ${salary['total_pay'] ?? 'N/A'}'),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
                       ),
                     );
                   },
