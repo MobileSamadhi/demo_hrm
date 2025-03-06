@@ -204,7 +204,10 @@ class _AttendanceReportPageState extends State<AttendanceReportPage> {
         ),
         backgroundColor: Platform.isIOS ? Color(0xFF0D9494) : Color(0xFF0D9494),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Platform.isIOS ? Icons.arrow_back_ios : Icons.arrow_back,
+            color: Colors.white,
+          ),
           onPressed: () {
             Navigator.pushReplacement(
               context,

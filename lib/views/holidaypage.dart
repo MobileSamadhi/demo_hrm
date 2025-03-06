@@ -147,9 +147,14 @@ class _HolidayPageState extends State<HolidayPage> {
           final message = result['message'] ?? 'Unknown error';
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$status: $message'),
-              backgroundColor: Colors.green,),
+            SnackBar(
+              content: Text('$status: $message'),
+              backgroundColor: Colors.green,
+            ),
           );
+
+          // Clear text fields after successful submission
+          _clearForm();
         } else {
           throw Exception('Failed to connect to the server. Status code: ${response.statusCode}');
         }
@@ -160,6 +165,18 @@ class _HolidayPageState extends State<HolidayPage> {
       }
     }
   }
+
+// Function to clear all text fields
+  void _clearForm() {
+    setState(() {
+      _holidayNameController.clear();
+      _startDateController.clear();
+      _endDateController.clear();
+      _numberOfDaysController.clear();
+      _yearController.clear();
+    });
+  }
+
 
 
   @override
