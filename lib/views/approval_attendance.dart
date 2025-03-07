@@ -467,21 +467,6 @@ class _AttendanceApprovalPageState extends State<AttendanceApprovalPage> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: _getStatusColor(request['status']), width: 1.5),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.info_outline, size: 18, color: _getStatusColor(request['status'])),
-                            SizedBox(width: 6),
-                            Text(
-                              'Status: ${request['status']}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _getStatusColor(request['status']),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
 
                       SizedBox(height: 12),
